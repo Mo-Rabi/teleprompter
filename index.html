@@ -459,7 +459,8 @@
     <div class="hints">
       Voice (tap 🎙, say the word <em>twice</em>): <b>ACTION ACTION</b> roll ·
       <b>CUT CUT</b> stop · <b>BACK BACK</b> redo paragraph ·
-      <b>NEXT NEXT</b> next script · <b>RESET RESET</b> top of script
+      <b>NEXT NEXT</b> next script · <b>RESET RESET</b> top of script ·
+      say once: <b>SCRIPT 7</b> jump to a script
     </div>
     <div class="hints">
       Clicker / keyboard: <b>space · enter · page↓</b> play-pause ·
@@ -679,6 +680,17 @@
     render();
   }
 
+  function openScript(n) {
+    const i = SCRIPTS.findIndex((s) => s.n === n);
+    if (i === -1) return false;
+    pause();
+    st.idx = i;
+    save();
+    takeMs = 0;
+    render();
+    return true;
+  }
+
   // ---------- controls ----------
   $("playBtn").addEventListener("click", toggle);
   $("restartBtn").addEventListener("click", resetTop);
@@ -755,9 +767,28 @@
     next:   { hz: 659, run: nextScript },
     reset:  { hz: 523, run: resetTop },
   };
+  // "script seven" / "script 7" jumps straight to that script; the recognizer
+  // often mishears number words, so common homophones are accepted too
+  const NUM_WORDS = {
+    one: 1, won: 1, two: 2, to: 2, too: 2, three: 3, four: 4, for: 4,
+    five: 5, six: 6, seven: 7, eight: 8, ate: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+  };
+  const SCRIPT_RE = /\bscripts?\s+(\d{1,2}|[a-z]+)\b/;
+
   const lastCmd = {};
   function handleSpeech(txt) {
     txt = txt.toLowerCase();
+    const sm = txt.match(SCRIPT_RE);
+    if (sm && Date.now() - (lastCmd.script || 0) > 2500) {
+      const n = /^\d/.test(sm[1]) ? Number(sm[1]) : NUM_WORDS[sm[1]];
+      if (n) {
+        lastCmd.script = Date.now();
+        if (openScript(n)) { flash("script " + n); beep(659); }
+        else { flash("no script " + n); beep(220); }
+      }
+    }
     for (const w in VOICE_CMDS) {
       // the word twice in a row (only punctuation/spaces between) = a command
       if (!new RegExp("\\b" + w + "\\b[^a-z]{0,8}\\b" + w + "\\b").test(txt)) continue;
