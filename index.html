@@ -485,7 +485,18 @@
   let pos = 0;    // true scroll position as a float — scrollTop rounds to whole
                   // pixels, so accumulating on it quantizes every speed to ~1px/frame
 
-  const pxPerSec = () => st.font * 1.05 * st.mult;
+  // speed is word-based: px-per-word is measured from the rendered layout, so any
+  // font size / orientation / words-per-line gives the same words-per-minute
+  const WPS = 2.4; // words per second at 1× — matches the scripts' ~40s targets
+  let pxPerWord = 18;
+  function updateMetrics() {
+    const words = SCRIPTS[st.idx].beats
+      .filter((b) => b.t === "say")
+      .reduce((a, b) => a + b.x.split(/\s+/).length, 0);
+    const max = scroll.scrollHeight - scroll.clientHeight;
+    if (words > 0 && max > 0) pxPerWord = max / words;
+  }
+  const pxPerSec = () => pxPerWord * WPS * st.mult;
   const focusY = () => innerHeight * 0.30;
   const fmtSec = (ms) => Math.round(ms / 1000) + "s";
 
@@ -501,6 +512,7 @@
     $("scriptBtn").querySelector(".ttl").textContent = s.title;
     scroll.scrollTop = 0;
     takeMs = 0;
+    updateMetrics();
     paint();
   }
 
@@ -674,6 +686,7 @@
   const setFont = (v) => {
     st.font = Math.min(64, Math.max(26, v)); save();
     document.documentElement.style.setProperty("--font", st.font + "px");
+    updateMetrics();
     paint();
   };
   $("fontUp").addEventListener("click", () => setFont(st.font + 3));
@@ -703,7 +716,7 @@
     document.body.classList.toggle("no-notes", !st.notes);
     notesBtn.setAttribute("aria-pressed", String(st.notes));
   };
-  notesBtn.addEventListener("click", () => { st.notes = !st.notes; save(); applyNotes(); paint(); });
+  notesBtn.addEventListener("click", () => { st.notes = !st.notes; save(); applyNotes(); updateMetrics(); paint(); });
 
   // ---------- voice commands (say the word twice) ----------
   const flashEl = $("flash");
@@ -809,7 +822,7 @@
     }
   });
 
-  addEventListener("resize", paint);
+  addEventListener("resize", () => { updateMetrics(); paint(); });
 
   // ---------- boot ----------
   document.documentElement.style.setProperty("--font", st.font + "px");
