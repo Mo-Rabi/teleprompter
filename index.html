@@ -340,6 +340,14 @@
   #closePicker, #closeHelp { padding: 8px 14px; font-size: 14px; color: var(--muted); }
 
   .help-q { font-size: 19px; font-weight: 700; color: var(--muted); }
+  .ver {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    align-self: center;
+    flex: none;
+  }
   .help-body {
     overflow-y: auto;
     flex: 1;
@@ -495,11 +503,12 @@
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
   <button id="helpBtn" class="icon-btn help-q" aria-label="Show commands">?</button>
+  <span class="ver">v260705.a429</span>
 </div>
 
 <div id="help" role="dialog" aria-label="Commands">
   <header>
-    <span class="h">Commands</span>
+    <span class="h">Commands · v260705.a429</span>
     <button id="closeHelp">Close</button>
   </header>
   <div class="help-body">
