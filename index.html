@@ -474,7 +474,7 @@
         remain = $("remain"), progress = $("progress");
 
   // ---------- state ----------
-  let st = { idx: 0, mult: 0.9, font: 38, notes: true };
+  let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false };
   try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
   st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
@@ -790,7 +790,8 @@
     };
     rec.onend = () => {
       rec = null;
-      if (voiceOn) setTimeout(startRec, 300); // engines stop on silence — keep it alive
+      // engines stop on silence — keep it alive (but not while backgrounded)
+      if (voiceOn && !document.hidden) setTimeout(startRec, 300);
     };
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -806,9 +807,20 @@
   if (!SR) micBtn.setAttribute("disabled", "");
   micBtn.addEventListener("click", () => {
     voiceOn = !voiceOn;
+    st.voice = voiceOn; save();
     setVoiceUI();
     if (voiceOn) { beep(784); startRec(); }
     else { try { rec?.stop(); } catch {} rec = null; }
+  });
+
+  // re-arm voice when returning to the tab, and on first touch if the browser
+  // refused a no-gesture start on load
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && voiceOn && !rec) startRec();
+  });
+  document.addEventListener("pointerdown", () => {
+    try { audioCtx?.resume(); } catch {}
+    if (voiceOn && !rec) startRec();
   });
 
   // ---------- keyboard & bluetooth clicker ----------
@@ -834,6 +846,7 @@
     c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
   applyNotes();
   render();
+  if (st.voice && SR) { voiceOn = true; setVoiceUI(); startRec(); }
 })();
 </script>
 
