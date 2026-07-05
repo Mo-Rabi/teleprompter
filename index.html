@@ -485,18 +485,22 @@
   let pos = 0;    // true scroll position as a float — scrollTop rounds to whole
                   // pixels, so accumulating on it quantizes every speed to ~1px/frame
 
-  // speed is word-based: px-per-word is measured from the rendered layout, so any
-  // font size / orientation / words-per-line gives the same words-per-minute
-  const WPS = 2.4; // words per second at 1× — matches the scripts' ~40s targets
-  let pxPerWord = 18;
+  // speed is duration-based: at 1× the full scroll takes the script's own target
+  // time (~40s etc.), measured against the rendered layout — so font size,
+  // orientation, and words-per-line never change the reading pace
+  const WPS = 3.4; // fallback words/sec when a script has no target duration
+  let basePxPerSec = 40;
   function updateMetrics() {
-    const words = SCRIPTS[st.idx].beats
+    const s = SCRIPTS[st.idx];
+    const durMatch = (s.dur || "").match(/(\d+)/);
+    const words = s.beats
       .filter((b) => b.t === "say")
       .reduce((a, b) => a + b.x.split(/\s+/).length, 0);
+    const targetSec = durMatch ? Number(durMatch[1]) : words / WPS;
     const max = scroll.scrollHeight - scroll.clientHeight;
-    if (words > 0 && max > 0) pxPerWord = max / words;
+    if (targetSec > 0 && max > 0) basePxPerSec = max / targetSec;
   }
-  const pxPerSec = () => pxPerWord * WPS * st.mult;
+  const pxPerSec = () => basePxPerSec * st.mult;
   const focusY = () => innerHeight * 0.30;
   const fmtSec = (ms) => Math.round(ms / 1000) + "s";
 
