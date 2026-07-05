@@ -888,6 +888,14 @@
     if (typeof Vosk === "undefined" || !navigator.mediaDevices) return;
     voskLoading = true;
     micLive.lastChild.textContent = "LOADING OFFLINE VOICE…";
+    // watchdog: a hung model load must not mask that we're still in online mode
+    const watchdog = setTimeout(() => {
+      if (!voskReady) {
+        setMicLabel();
+        flash("offline voice failed");
+        beep(220);
+      }
+    }, 60000);
     try {
       const model = await Vosk.createModel("model-small-en-us.tar.gz");
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -922,6 +930,8 @@
     } catch (e) {
       setMicLabel(); // fall back to whatever web speech gives us
     }
+    clearTimeout(watchdog);
+    if (!voskReady) setMicLabel();
     voskLoading = false;
   }
 
