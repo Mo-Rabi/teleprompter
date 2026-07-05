@@ -299,8 +299,8 @@
   #micBtn[aria-pressed="true"] svg { fill: var(--accent); }
   #micBtn[disabled] { opacity: 0.35; cursor: default; }
 
-  /* ---------- picker ---------- */
-  #picker {
+  /* ---------- picker + help overlays ---------- */
+  #picker, #help {
     position: fixed;
     inset: 0;
     z-index: 10;
@@ -308,21 +308,54 @@
     display: none;
     flex-direction: column;
   }
-  #picker.open { display: flex; }
-  #picker header {
+  #picker.open, #help.open { display: flex; }
+  #picker header, #help header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 18px 20px 10px;
   }
-  #picker header .h {
+  #picker header .h, #help header .h {
     font-size: 12px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--muted);
     font-weight: 600;
   }
-  #closePicker { padding: 8px 14px; font-size: 14px; color: var(--muted); }
+  #closePicker, #closeHelp { padding: 8px 14px; font-size: 14px; color: var(--muted); }
+
+  .help-q { font-size: 19px; font-weight: 700; color: var(--muted); }
+  .help-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 20px calc(20px + env(safe-area-inset-bottom));
+    max-width: 560px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .help-sec {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 22px 0 8px;
+  }
+  .help-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: 15px;
+  }
+  .help-row b {
+    color: var(--accent);
+    font-weight: 700;
+    flex: none;
+    min-width: 11ch;
+  }
+  .help-row span { color: var(--ink); opacity: 0.8; }
 
   #list { overflow-y: auto; flex: 1; padding: 0 12px 12px; }
   .row {
@@ -431,11 +464,12 @@
   </button>
   <span class="chips" role="group" aria-label="Speed">
     <span class="lbl">Speed</span>
+    <button class="chip" data-m="0.6">0.6×</button>
+    <button class="chip" data-m="0.7">0.7×</button>
     <button class="chip" data-m="0.8">0.8×</button>
     <button class="chip" data-m="0.9" aria-pressed="true">0.9×</button>
     <button class="chip" data-m="1">1×</button>
     <button class="chip" data-m="1.2">1.2×</button>
-    <button class="chip" data-m="1.5">1.5×</button>
   </span>
   <span class="font-ctl" role="group" aria-label="Text size">
     <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
@@ -444,6 +478,31 @@
   <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
+  <button id="helpBtn" class="icon-btn help-q" aria-label="Show commands">?</button>
+</div>
+
+<div id="help" role="dialog" aria-label="Commands">
+  <header>
+    <span class="h">Commands</span>
+    <button id="closeHelp">Close</button>
+  </header>
+  <div class="help-body">
+    <div class="help-sec">Voice — say it twice in a row</div>
+    <div class="help-row"><b>action action</b><span>3-2-1 countdown, then roll</span></div>
+    <div class="help-row"><b>cut cut</b><span>stop scrolling</span></div>
+    <div class="help-row"><b>back back</b><span>redo the current paragraph</span></div>
+    <div class="help-row"><b>next next</b><span>next script, from the top</span></div>
+    <div class="help-row"><b>reset reset</b><span>top of this script</span></div>
+    <div class="help-sec">Voice — say it once</div>
+    <div class="help-row"><b>script 7</b><span>jump to script 7 (any number, 1–19)</span></div>
+    <div class="help-sec">Touch</div>
+    <div class="help-row"><b>tap the text</b><span>play / pause</span></div>
+    <div class="help-row"><b>drag the text</b><span>stops rolling, scroll anywhere</span></div>
+    <div class="help-sec">Clicker / keyboard</div>
+    <div class="help-row"><b>space · enter · page↓ · →</b><span>play / pause</span></div>
+    <div class="help-row"><b>page↑ · ←</b><span>redo the current paragraph</span></div>
+    <div class="help-row"><b>home</b><span>top of this script</span></div>
+  </div>
 </div>
 
 <div id="picker" role="dialog" aria-label="Choose a script">
@@ -456,16 +515,6 @@
     <button id="notesToggle" aria-pressed="true">
       <span class="box"></span> Show delivery cues (pauses, beats — not read aloud)
     </button>
-    <div class="hints">
-      Voice (tap 🎙, say the word <em>twice</em>): <b>ACTION ACTION</b> roll ·
-      <b>CUT CUT</b> stop · <b>BACK BACK</b> redo paragraph ·
-      <b>NEXT NEXT</b> next script · <b>RESET RESET</b> top of script ·
-      say once: <b>SCRIPT 7</b> jump to a script
-    </div>
-    <div class="hints">
-      Clicker / keyboard: <b>space · enter · page↓</b> play-pause ·
-      <b>page↑ · ←</b> redo paragraph · <b>home</b> top
-    </div>
   </footer>
 </div>
 
@@ -731,6 +780,10 @@
   $("scriptBtn").addEventListener("click", () => { pause(); buildList(); picker.classList.add("open"); });
   $("closePicker").addEventListener("click", () => picker.classList.remove("open"));
 
+  const help = $("help");
+  $("helpBtn").addEventListener("click", () => help.classList.add("open"));
+  $("closeHelp").addEventListener("click", () => help.classList.remove("open"));
+
   const notesBtn = $("notesToggle");
   const applyNotes = () => {
     document.body.classList.toggle("no-notes", !st.notes);
@@ -860,8 +913,12 @@
 
   // ---------- keyboard & bluetooth clicker ----------
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { picker.classList.remove("open"); return; }
-    if (picker.classList.contains("open")) return;
+    if (e.key === "Escape") {
+      picker.classList.remove("open");
+      help.classList.remove("open");
+      return;
+    }
+    if (picker.classList.contains("open") || help.classList.contains("open")) return;
     const onButton = e.target instanceof Element && e.target.closest("button");
     if ([" ", "Enter"].includes(e.key) && onButton) return; // native click handles it
     if ([" ", "Enter", "PageDown", "ArrowRight"].includes(e.key)) {
