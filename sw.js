@@ -1,7 +1,8 @@
-// Network-first, cache-fallback: updates arrive immediately when online,
-// and the prompter still opens with the last-fetched scripts when offline.
-const CACHE = "prompter-v1";
+// index.html: network-first so script updates arrive immediately when online.
+// vosk engine + speech model (~46MB total): cache-first — immutable, downloaded once.
+const CACHE = "prompter-v2";
 const ASSETS = ["./", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const IMMUTABLE = ["vosk.js", "model-small-en-us.tar.gz"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
@@ -19,6 +20,25 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  const isImmutable = IMMUTABLE.some((f) => e.request.url.endsWith(f));
+
+  if (isImmutable) {
+    e.respondWith(
+      caches.match(e.request).then(
+        (hit) =>
+          hit ||
+          fetch(e.request).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(e.request, copy));
+            }
+            return res;
+          })
+      )
+    );
+    return;
+  }
+
   e.respondWith(
     fetch(e.request)
       .then((res) => {

@@ -6,6 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#08090b">
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
+<script src="vosk.js" defer></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308090b'/%3E%3Crect x='15' y='14' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.22'/%3E%3Crect x='15' y='29' width='34' height='7' rx='3.5' fill='%23f4f1e9'/%3E%3Cpath d='M5 26l7 6.5-7 6.5z' fill='%23ffb347'/%3E%3Cpath d='M59 26l-7 6.5 7 6.5z' fill='%23ffb347'/%3E%3Crect x='15' y='45' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.45'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -878,14 +879,65 @@
     } catch {}
   }
 
+  // ---- Vosk: bundled offline engine (standalone/PWA build only) ----
+  // small English model served from this site and cached by the service
+  // worker, so voice commands work with no internet at all
+  let voskCtx = null, voskReady = false, voskLoading = false;
+  async function initVosk() {
+    if (voskReady || voskLoading || localMode) return;
+    if (typeof Vosk === "undefined" || !navigator.mediaDevices) return;
+    voskLoading = true;
+    micLive.lastChild.textContent = "LOADING OFFLINE VOICE…";
+    try {
+      const model = await Vosk.createModel("model-small-en-us.tar.gz");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+      voskCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // restrict recognition to the command vocabulary where supported
+      const grammar = JSON.stringify([
+        "action", "cut", "back", "next", "reset", "script",
+        "one","two","three","four","five","six","seven","eight","nine","ten",
+        "eleven","twelve","thirteen","fourteen","fifteen","sixteen",
+        "seventeen","eighteen","nineteen","[unk]",
+      ]);
+      let kald;
+      try { kald = new model.KaldiRecognizer(voskCtx.sampleRate, grammar); }
+      catch { kald = new model.KaldiRecognizer(voskCtx.sampleRate); }
+      kald.on("result", (m) => { if (voiceOn && m.result) handleSpeech(m.result.text || ""); });
+      kald.on("partialresult", (m) => { if (voiceOn && m.result) handleSpeech(m.result.partial || ""); });
+      const src = voskCtx.createMediaStreamSource(stream);
+      const proc = voskCtx.createScriptProcessor(4096, 1, 1);
+      src.connect(proc);
+      proc.connect(voskCtx.destination);
+      proc.onaudioprocess = (e) => {
+        if (voiceOn) try { kald.acceptWaveform(e.inputBuffer); } catch {}
+      };
+      try { voskCtx.resume(); } catch {}
+      voskReady = true;
+      localMode = true;
+      setMicLabel();
+      try { rec?.stop(); } catch {} // web speech no longer needed
+      rec = null;
+    } catch (e) {
+      setMicLabel(); // fall back to whatever web speech gives us
+    }
+    voskLoading = false;
+  }
+
   function setVoiceUI() {
     micBtn.setAttribute("aria-pressed", String(voiceOn));
     micBtn.setAttribute("aria-label", voiceOn ? "Voice commands on" : "Voice commands off");
     document.body.classList.toggle("voice", voiceOn);
   }
 
+  function initVoiceEngines() {
+    // chrome on-device first (no download if supported), then bundled vosk
+    Promise.resolve(initLocalSpeech()).then(initVosk);
+  }
+
   function startRec() {
-    if (!SR || rec) return;
+    if (!SR || rec || voskReady) return;
     rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
@@ -923,7 +975,7 @@
     voiceOn = !voiceOn;
     st.voice = voiceOn; save();
     setVoiceUI();
-    if (voiceOn) { beep(784); initLocalSpeech(); startRec(); }
+    if (voiceOn) { beep(784); initVoiceEngines(); startRec(); }
     else { try { rec?.stop(); } catch {} rec = null; }
   });
 
@@ -934,6 +986,7 @@
   });
   document.addEventListener("pointerdown", () => {
     try { audioCtx?.resume(); } catch {}
+    try { voskCtx?.resume(); } catch {}
     if (voiceOn && !rec) startRec();
   });
 
@@ -964,7 +1017,7 @@
     c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
   applyNotes();
   render();
-  if (st.voice && SR) { voiceOn = true; setVoiceUI(); initLocalSpeech(); startRec(); }
+  if (st.voice && SR) { voiceOn = true; setVoiceUI(); initVoiceEngines(); startRec(); }
 })();
 </script>
 
