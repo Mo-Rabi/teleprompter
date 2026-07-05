@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Mo's Teleprompter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #08090b;
+    --ink: #f4f1e9;
+    --muted: #97917f;
+    --accent: #ffb347;
+    --rec: #ff5348;
+    --hairline: rgba(244, 241, 233, 0.14);
+    --bar-bg: rgba(13, 14, 17, 0.92);
+    --font: 38px;
+    --focus-y: 30;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+      "Noto Sans", "Noto Sans Arabic", sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ---------- prompter ---------- */
+  #scroll {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: none;
+  }
+  #scroll::-webkit-scrollbar { display: none; }
+
+  #lines {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 34dvh 24px 68dvh;
+    text-align: center;
+  }
+
+  .script-head { margin-bottom: 2.2em; }
+  .script-head .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .script-head h1 {
+    margin-top: 10px;
+    font-size: clamp(20px, calc(var(--font) * 0.62), 40px);
+    font-weight: 700;
+    color: var(--muted);
+    text-wrap: balance;
+    line-height: 1.25;
+  }
+
+  .say {
+    font-size: var(--font);
+    font-weight: 650;
+    line-height: 1.42;
+    margin: 0 0 1.15em;
+    text-wrap: balance;
+    transition: opacity 0.25s ease;
+  }
+  .note {
+    font-size: calc(var(--font) * 0.42);
+    font-style: italic;
+    color: var(--muted);
+    margin: 0 0 2.2em;
+    transition: opacity 0.25s ease;
+  }
+  .note::before { content: "· "; }
+  .note::after  { content: " ·"; }
+  body.no-notes .note { display: none; }
+
+  .say.read, .note.read { opacity: 0.22; }
+  .say.up,   .note.up   { opacity: 0.5; }
+  .say.active            { opacity: 1; }
+  .note.active           { opacity: 0.85; }
+
+  .end-slate {
+    margin-top: 3em;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- focus marker ---------- */
+  .chev {
+    position: fixed;
+    top: calc(var(--focus-y) * 1dvh);
+    width: 0; height: 0;
+    border-top: 9px solid transparent;
+    border-bottom: 9px solid transparent;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .chev.l { left: 8px;  border-left: 12px solid var(--accent); }
+  .chev.r { right: 8px; border-right: 12px solid var(--accent); }
+
+  /* ---------- progress + status ---------- */
+  #progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    background: var(--accent);
+    z-index: 6;
+  }
+  #status {
+    position: fixed;
+    top: 10px; right: 14px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    z-index: 6;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  body.playing #status { display: flex; }
+  #status .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--rec);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  #micLive {
+    position: fixed;
+    top: 10px; left: 14px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    z-index: 6;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+  }
+  body.voice #micLive { display: flex; }
+  #micLive svg { width: 13px; height: 13px; fill: var(--accent); }
+
+  /* ---------- voice command flash ---------- */
+  #flash {
+    position: fixed;
+    top: calc(var(--focus-y) * 1dvh + 80px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    z-index: 7;
+    display: none;
+    pointer-events: none;
+  }
+  #flash.show { display: block; animation: flashfade 0.9s ease-out forwards; }
+  @keyframes flashfade {
+    from { opacity: 1; }
+    70%  { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  /* ---------- countdown ---------- */
+  #count {
+    position: fixed;
+    top: calc(var(--focus-y) * 1dvh);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 120px;
+    font-weight: 800;
+    color: var(--accent);
+    z-index: 7;
+    display: none;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  #count.tick { display: block; animation: tick 0.7s ease-out; }
+  @keyframes tick {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+    20%  { opacity: 1; }
+    to   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* ---------- control bar ---------- */
+  #bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 5;
+    background: var(--bar-bg);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--hairline);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    transition: transform 0.3s ease;
+  }
+  body.hide-ui #bar { transform: translateY(110%); }
+
+  button {
+    font: inherit;
+    color: var(--ink);
+    background: none;
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #scriptBtn {
+    flex: 1 1 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 9px 14px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  #scriptBtn .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+  #scriptBtn .ttl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #scriptBtn .arr { color: var(--muted); }
+
+  .icon-btn {
+    width: 46px; height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex: none;
+  }
+  .icon-btn svg { width: 20px; height: 20px; fill: var(--ink); }
+
+  #playBtn {
+    width: 58px; height: 58px;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  #playBtn svg { width: 24px; height: 24px; fill: #14100a; }
+
+  .chips { display: inline-flex; gap: 6px; align-items: center; }
+  .chips .lbl {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+  .chip {
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .chip[aria-pressed="true"] {
+    color: #14100a;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .font-ctl { display: inline-flex; gap: 6px; }
+  .font-ctl button {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .font-ctl .big { font-size: 19px; }
+  .font-ctl .sml { font-size: 13px; }
+
+  #micBtn[aria-pressed="true"] {
+    background: rgba(255, 179, 71, 0.18);
+    border-color: var(--accent);
+  }
+  #micBtn[aria-pressed="true"] svg { fill: var(--accent); }
+  #micBtn[disabled] { opacity: 0.35; cursor: default; }
+
+  /* ---------- picker ---------- */
+  #picker {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(8, 9, 11, 0.97);
+    display: none;
+    flex-direction: column;
+  }
+  #picker.open { display: flex; }
+  #picker header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 10px;
+  }
+  #picker header .h {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  #closePicker { padding: 8px 14px; font-size: 14px; color: var(--muted); }
+
+  #list { overflow-y: auto; flex: 1; padding: 0 12px 12px; }
+  .row {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 14px 12px;
+    border: none;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: left;
+    color: var(--ink);
+  }
+  .row .num {
+    width: 2ch;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+  .row.current .num, .row.current .ttl { color: var(--accent); }
+  .row .ttl { flex: 1; }
+  .row .dur { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  #picker footer {
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--hairline);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hints {
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .hints b {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  #notesToggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    padding: 4px 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  #notesToggle .box {
+    width: 34px; height: 20px;
+    border-radius: 999px;
+    border: 1px solid var(--hairline);
+    position: relative;
+    flex: none;
+    transition: background 0.2s;
+  }
+  #notesToggle .box::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.2s, background 0.2s;
+  }
+  #notesToggle[aria-pressed="true"] .box { background: rgba(255, 179, 71, 0.25); }
+  #notesToggle[aria-pressed="true"] .box::after {
+    transform: translateX(14px);
+    background: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #status .dot { animation: none; }
+    #count.tick { animation: none; opacity: 1; }
+    .say, .note, #bar { transition: none; }
+  }
+</style>
+
+<div id="progress"></div>
+<div id="status"><span class="dot"></span><span id="remain"></span></div>
+<div id="micLive">
+  <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+  LISTENING
+</div>
+<div id="flash" aria-hidden="true"></div>
+<div class="chev l"></div>
+<div class="chev r"></div>
+<div id="count" aria-hidden="true"></div>
+
+<div id="scroll"><div id="lines"></div></div>
+
+<div id="bar">
+  <button id="scriptBtn" aria-haspopup="dialog">
+    <span class="num"></span><span class="ttl"></span><span class="arr">▾</span>
+  </button>
+  <button id="restartBtn" class="icon-btn" aria-label="Back to top">
+    <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/></svg>
+  </button>
+  <button id="playBtn" class="icon-btn" aria-label="Play">
+    <svg id="playIco" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <svg id="pauseIco" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+  </button>
+  <span class="chips" role="group" aria-label="Speed">
+    <span class="lbl">Speed</span>
+    <button class="chip" data-m="0.8">0.8×</button>
+    <button class="chip" data-m="1" aria-pressed="true">1×</button>
+    <button class="chip" data-m="1.2">1.2×</button>
+    <button class="chip" data-m="1.5">1.5×</button>
+  </span>
+  <span class="font-ctl" role="group" aria-label="Text size">
+    <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
+    <button id="fontUp" class="big" aria-label="Bigger text">A+</button>
+  </span>
+  <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+  </button>
+</div>
+
+<div id="picker" role="dialog" aria-label="Choose a script">
+  <header>
+    <span class="h">Scripts</span>
+    <button id="closePicker">Close</button>
+  </header>
+  <div id="list"></div>
+  <footer>
+    <button id="notesToggle" aria-pressed="true">
+      <span class="box"></span> Show delivery cues (pauses, beats — not read aloud)
+    </button>
+    <div class="hints">
+      Voice (tap 🎙, say the word <em>twice</em>): <b>ACTION ACTION</b> roll ·
+      <b>CUT CUT</b> stop · <b>BACK BACK</b> redo paragraph ·
+      <b>NEXT NEXT</b> next script · <b>RESET RESET</b> top of script
+    </div>
+    <div class="hints">
+      Clicker / keyboard: <b>space · enter · page↓</b> play-pause ·
+      <b>page↑ · ←</b> redo paragraph · <b>home</b> top
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const SCRIPTS = [{"n":1,"title":"Say This to Your Arab Parents Tonight","dur":"~40s","beats":[{"t":"say","x":"Your Arab parents have probably never heard this sentence from you — in their own language. Tonight, that changes."},{"t":"say","x":"وحشتني — wahashtini — \"I missed you.\" One word. In English you'd need a whole paragraph to carry what this carries. Say it to your mom and watch her face do the thing."},{"t":"say","x":"But there's one they've REALLY never heard. Kids never say it to parents. It only goes the other way."},{"t":"note","x":"long beat of silence"},{"t":"say","x":"أنا فخور بيك — ana fakhoor beek — \"I'm PROUD of you.\" To your mom: fakhoor beeki. If you're a daughter: fakhoora. They left everything, started over, raised you in two languages — and nobody's ever told them a child is proud of THEM."},{"t":"say","x":"Your accent doesn't matter. Broken Arabic from a child's mouth is their favorite sound on earth."},{"t":"say","x":"Say it tonight — then come back and tell me what happened in the comments. I read every single one."}]},{"n":2,"title":"Your App Taught You News-Anchor Arabic","dur":"~40s","beats":[{"t":"say","x":"Your app taught you to greet Egyptians like a 1970s news anchor."},{"t":"say","x":"كيف حالك؟ — kayfa haaluka? Grammatically flawless. And the last person to greet a friend this way was reading a bulletin in 1974."},{"t":"say","x":"In an actual Cairo café? إزيك؟ — ezzayek? One word. That's it. That's the entire greeting. To a woman: ezzayyik. Nobody's conjugating anything at 8am."},{"t":"say","x":"Look — MSA isn't wrong. It's the news, the books, the formal world. But if your app never taught you ezzayek, it's preparing you for a press conference, not a conversation."},{"t":"say","x":"Comment \"news\" or \"street\" — which one did YOUR app teach you? Mine teaches you both — the news AND the street: app.arabicwithmo.com."}]},{"n":3,"title":"Three Sentences vs. the Cairo Taxi Meter","dur":"~50s","beats":[{"t":"say","x":"Cairo taxi drivers can smell a tourist. These three sentences change the price instantly."},{"t":"say","x":"BEFORE you touch the door: هتوصلني بكام؟ — hatwasalni bekam? — \"how much to take me?\" Price first, ride second. Crazy number? Smile, walk away. There's always another taxi."},{"t":"say","x":"Too high? Push back — مش كتير؟ — mish kteer? — \"isn't that a lot?\""},{"t":"say","x":"But sentence three… sentence three is the local badge."},{"t":"note","x":"beat of silence"},{"t":"say","x":"عداد لو سمحت — 3addad law samaht — \"meter, please.\" Calm. Confident. Like you've said it a hundred times. If they refuse the meter — you refuse the ride. That's the whole negotiation."},{"t":"say","x":"Bonus, to get out: على جنب هنا — 3ala gamb hena — \"pull over here.\" Now you're operating."},{"t":"say","x":"Save this before your trip — you'll thank me at the airport. And drop your wildest taxi story in the comments. Want to rehearse the whole exchange before you're IN the taxi? app.arabicwithmo.com."}]},{"n":4,"title":"You're Saying Habibi Wrong","dur":"~45s","beats":[{"t":"say","x":"You've been saying habibi wrong your whole life — and every Arab can hear it."},{"t":"say","x":"That H at the start? Not the English H. Arabic has TWO H's — and you're using the wrong one."},{"t":"say","x":"ه — ha — that's your English H. Hello. Easy. But ح — ḥa — comes from deeper. It's the sound you make fogging up a mirror — haaaa."},{"t":"say","x":"Try it right now. Wherever you are — fog the mirror. Haaaa. Now say it: ḥa-bi-bi."},{"t":"say","x":"Listen to the difference. English version — habibi. Arabic version — ḥabibi. Hear it? One's a tourist. One's the real thing."},{"t":"say","x":"Now put it in a sentence — يا حبيبي — ya ḥabibi — \"oh my dear.\" Say it like that and watch an Arab's face light up."},{"t":"say","x":"My app makes you say this stuff out loud — real speaking, real corrections, not flashcards. It's at app.arabicwithmo.com — go fix your ḥabibi."}]},{"n":5,"title":"One Letter: \"My Heart\" vs \"My Dog\" — MSA version","dur":"~45s","beats":[{"t":"say","x":"One letter is the difference between calling someone \"my heart\" — and calling them a dog."},{"t":"say","x":"قلبي — qalbi — \"my heart.\" It's what Arabs call the people they love. كلبي — kalbi — \"my dog.\" One. Letter."},{"t":"say","x":"The problem is ق — qaf. It's NOT a K. Your K lives at the front of your mouth — qaf lives all the way in the back, like you're swallowing it."},{"t":"say","x":"Say it with me. Front of the mouth — ka. Now push it back — qa. Again — ka… qa… qa… now the whole word — qal-bi. That's it. That's the one that gets you married instead of blocked."},{"t":"say","x":"So next time, say it with your chest — يا قلبي — ya qalbi — \"oh my heart.\" Deep Q. Full romance. Zero dogs."},{"t":"say","x":"This is literally what my app trains — minimal pairs, out loud, until your ear and your mouth both get it. app.arabicwithmo.com — your crush will thank me."}]},{"n":6,"title":"Heart vs Dog, Cairo Edition","dur":"~45s","beats":[{"t":"say","x":"In Cairo, pronouncing this word TOO correctly is how you call your date a dog."},{"t":"say","x":"The word is قلبي — \"my heart.\" In textbook Arabic that's qalbi, with a deep Q. But Egyptians deleted that letter. In Cairo it's 'albi — the Q becomes a tiny catch in the throat, like the middle of \"uh-oh.\""},{"t":"say","x":"Here's the trap. Learners who can't find that sound reach for the nearest thing — a hard K. And kalbi — كلبي — means \"my dog.\""},{"t":"say","x":"And that's how the date ended."},{"t":"say","x":"The fix is easier than the textbook version. Say \"uh-oh.\" Feel that catch in the middle? That's the whole sound. Now: 'al-bi. No K. No deep Q. Just the catch. Ya 'albi — \"oh my heart.\""},{"t":"say","x":"Comment \"ya albi\" so I know you got it. And my app listens to you say it and tells you which one came out — heart or dog. app.arabicwithmo.com. Protect your date."}]},{"n":7,"title":"3 Years of Duolingo, Zero Coffees","dur":"~50s","beats":[{"t":"say","x":"Three years of Duolingo and you still can't order a coffee. Watch this."},{"t":"say","x":"Duolingo taught you \"the owl eats bread.\" Amazing. Nobody has ever needed that sentence. Here's what ordering a coffee actually sounds like —"},{"t":"say","x":"This is my app. Conversation mode. I'm the customer — it's the barista. Go."},{"t":"say","x":"مرحبا — قهوة من فضلك — marḥaban — qahwa min faḍlik."},{"t":"note","x":"app asks: سكر؟ — sukkar? — \"sugar?\""},{"t":"say","x":"نعم — شكراً — naʿam — shukran."},{"t":"note","x":"show the app correcting one word — the retry is the money shot"},{"t":"say","x":"That's it. A real back-and-forth — it listens, it answers, it corrects me when I'm sloppy. That's the difference between tapping bread sentences and actually speaking."},{"t":"say","x":"It's at app.arabicwithmo.com. Go order your first coffee in Arabic this week — then come tell me about it in the comments."}]},{"n":8,"title":"\"Oh My Destruction!\" — Egyptian Drama 101","dur":"~40s","beats":[{"t":"say","x":"\"Oh my DESTRUCTION!\" That's what Egyptians yell when we drop a spoon."},{"t":"say","x":"يا خرابي — ya kharabi — literally \"oh my destruction.\" Dropped your phone? Ya kharabi. Saw a cute baby? Also ya kharabi. There are no rules. Egyptians are the most dramatic people alive and we know it."},{"t":"say","x":"Then there's the classic — يا لهوي — ya lahwy."},{"t":"say","x":"YA LAHWYYY!"},{"t":"say","x":"And when it's ACTUALLY bad — يا مصيبتي — ya moseebty — \"oh my disaster.\" Exam results, burnt dinner, seeing your ex. This is the heavy artillery."},{"t":"say","x":"Drop YOUR go-to dramatic phrase in the comments — every language has one, and I'm collecting the whole set."}]},{"n":9,"title":"Egypt Runs on One Word","dur":"~40s","beats":[{"t":"say","x":"Egypt runs on one word. It means \"sorry,\" \"it's okay,\" AND \"such is life\" — at the same time."},{"t":"say","x":"معلش — ma3lesh. You bump someone — ma3lesh. THEY bump YOU — ma3lesh. The traffic, the delay, the spilled coffee — ma3lesh. It apologizes, forgives, and shrugs, all in two syllables."},{"t":"say","x":"But warning — if you REALLY messed up… ma3lesh will not save you."},{"t":"say","x":"That's when you need آسف — asef — a real \"I'm sorry.\" And for the big ones — you forgot her birthday — سامحني — samehni — \"forgive me.\" That's the nuclear apology."},{"t":"say","x":"So: small stuff — ma3lesh. Real mistake — asef. You're begging — samehni."},{"t":"say","x":"Comment the last thing you had to say samehni for — I won't judge. The comments are a safe space. Mostly."}]},{"n":10,"title":"\"Good Morning\" Is a Test in Egypt","dur":"~40s","beats":[{"t":"say","x":"In Egypt, \"good morning\" is a test — and most learners fail the reply."},{"t":"say","x":"Someone says صباح الخير — sabah el-khair. If you just say it back… you sound like a textbook with legs. It's an opening move — it demands a DIFFERENT reply."},{"t":"say","x":"The real reply: صباح النور — sabah en-nur — \"morning of LIGHT.\" They give you goodness, you give them light back."},{"t":"say","x":"But if you want them to actually smile — go one level up."},{"t":"note","x":"beat of silence"},{"t":"say","x":"صباح العسل — sabah el-asal — \"morning of HONEY.\" Friends, family, people you love. It's pure warmth, and no app ever teaches it."},{"t":"say","x":"Evenings? Same exact game — just swap sabah for masa'. Masa' el-khair, masa' en-nur, masa' el-asal. One rule, whole day covered."},{"t":"say","x":"So which are you — a nur person or an asal person? Comments — and no, you can't be both."}]},{"n":11,"title":"The Three Levels of Egyptian Disbelief","dur":"~40s","beats":[{"t":"say","x":"Egyptians have three levels of \"really?\" — and level three is basically calling you a liar."},{"t":"say","x":"Level one: بجد؟ — begad? — \"really?\" Casual. Your friend got a new job — begad? Nice. Used fifty times a day."},{"t":"note","x":"step toward camera, hand on chest, eyes wide"},{"t":"say","x":"Level two: لا والله — la wallahi! — \"no, I SWEAR?!\" Now you're invested. This is \"no WAY\" energy."},{"t":"say","x":"But level three… level three means the friendship is under review."},{"t":"note","x":"slow eyebrow raise, dead silence, hold 1 full second"},{"t":"say","x":"متأكد؟ — meta'aked? — \"are you… SURE?\" Said slowly, with the eyebrow. You're not asking for confirmation — you're auditing their entire story. To a woman: meta'akda?"},{"t":"say","x":"Tell me the last thing that made you go la wallahi — comments, now. Best story gets pinned."}]},{"n":12,"title":"When Egyptians Forgive You, We Say \"Good Happened\"","dur":"~40s","beats":[{"t":"say","x":"When you apologize to an Egyptian, we answer: \"good happened.\" Yes — GOOD. Let me explain."},{"t":"say","x":"حصل خير — hasal kheir — literally \"good happened.\" It means: whatever went wrong, no harm done, we're moving on. It closes the whole incident in two words."},{"t":"say","x":"Want them to relax completely? ولا يهمك — wala yhemmak — \"don't even worry about it.\""},{"t":"say","x":"Now notice something. Every one of these phrases does the same job—"},{"t":"say","x":"—they lift the weight OFF the other person. The deepest one: ما تشيلش هم — ma teshelsh hamm — \"don't CARRY the worry.\" Like worry is a physical load, and you're taking it off their back. That's the whole culture in one sentence."},{"t":"say","x":"Which language do YOU think forgives most beautifully? Fight it out in the comments — I'll referee."}]},{"n":13,"title":"Egyptians Don't Say \"Good Job\"","dur":"~40s","beats":[{"t":"say","x":"Egyptians don't say \"good job.\" We say \"may God light it up\" — and honestly? It hits harder."},{"t":"say","x":"الله ينور — Allah yenawwar. Someone fixes your car, cooks your meal, finishes any work for you — this is what you say. You're literally blessing their effort."},{"t":"say","x":"But with friends? One word."},{"t":"say","x":"3ash! … 3ash! … 3ASH!"},{"t":"say","x":"And the gold standard — someone hands you food or makes something with their hands: تسلم إيدك — teslam eedak — \"may your hands be safe.\" Say it to whoever cooks for you and watch them melt."},{"t":"say","x":"Drop a 3ash in the comments if you're using one of these this week — and tell me which one. I want receipts."}]},{"n":14,"title":"One Meal Makes You Family","dur":"~35s","beats":[{"t":"say","x":"In Egypt, eating with someone once makes you family. There's a two-word contract that seals it."},{"t":"say","x":"عيش وملح — 3eish we malh — \"bread and salt.\" If we've shared bread and salt, we have a bond. Not friendship — a BOND. It's one of the oldest promises in the culture."},{"t":"say","x":"And here's how serious it is — the worst thing you can say about someone in Egypt…"},{"t":"say","x":"…is \"he ate my bread and salt — and still betrayed me.\" Breaking 3eish we malh isn't rude. It's a character verdict."},{"t":"say","x":"So that dinner invitation from an Egyptian? It's not casual. You're being offered the contract."},{"t":"say","x":"Tag your 3eish-we-malh person — they should know what they signed."}]},{"n":15,"title":"Ordering Egypt's National Dish Like a Local","dur":"~45s","beats":[{"t":"say","x":"Rice, pasta, AND lentils — in the same bowl. Egypt's national dish sounds illegal, and there's a right way to order it."},{"t":"say","x":"كشري وسط لو سمحت — koshari wost law samaht — \"a medium koshari, please.\" Wost — medium — is the move. Trust me on the size."},{"t":"say","x":"Now THIS is where they can tell if you're a local—"},{"t":"say","x":"زوّد الشطة — zawwed el-shatta — \"extra hot sauce.\" This is how Egyptians actually eat it. Fair warning: shatta does not negotiate."},{"t":"note","x":"skit beat: one spoon, pause, single tear, thumbs up while suffering"},{"t":"say","x":"Finished the bowl and grieving? واحد كمالة لو سمحت — wahed kemala law samaht — \"one top-up, please.\" Yes, refills are a concept here. You're welcome."},{"t":"say","x":"Comment 🔥 if you'd survive the shatta — or 🥛 if we both know you wouldn't. Be honest — the shatta already knows."}]},{"n":16,"title":"The First Price Is a Personality Test","dur":"~40s","beats":[{"t":"say","x":"The first price in an Egyptian market isn't a price. It's a personality test."},{"t":"say","x":"They say a number. You smile — never angry, always smiling — and say: ده غالي خالص — da ghali khales — \"that's WAY too expensive.\" The smile is doing half the work. This is a game, and you just accepted the invitation."},{"t":"say","x":"Rule number one before the next phrase — never look too interested. Put the thing DOWN."},{"t":"say","x":"Then drop the closer: آخرك كام؟ — akherak kam? — \"what's your FINAL price?\" This sentence tells them you know the game. The number that comes back is the real one — and it's nowhere near the first."},{"t":"say","x":"Two sentences and a smile. That's the difference between the tourist price and the real one."},{"t":"say","x":"Drop a 🐫 if Egypt's on your list this year — and tell me the best haggle you've ever pulled off. Any country counts."}]},{"n":17,"title":"The Waiter Who Ended My Textbook Arabic","dur":"~40s","beats":[{"t":"say","x":"A Cairo waiter heard my textbook Arabic — and looked at me like I'd time-traveled from 1875."},{"t":"say","x":"Years of study. I walk into a café, ready. The waiter comes over and I go — ماذا تريد؟ — maatha tureed? Perfectly formal. Perfectly correct. He just… stared. Like I'd asked for the town crier."},{"t":"say","x":"Then he said TWO words that ended my entire textbook career—"},{"t":"say","x":"عايز إيه؟ — 3ayez eh? — \"want what?\" That's it. That's how Egypt asks. Short, warm, human. To a woman: 3ayza eh? No \"maatha.\" No ceremony. Two words."},{"t":"say","x":"The textbook version is for the exam. This one's for the trip. Learn both — but don't confuse the two."},{"t":"say","x":"Save this one for the café — and if a waiter has ever ended YOUR textbook career too, tell me the story. Misery loves company."}]},{"n":18,"title":"You Already Know Arabic's Most Useful Word","dur":"~40s","beats":[{"t":"say","x":"One Arabic word means \"let's go,\" \"hurry up,\" \"goodbye,\" AND \"please stop talking.\" And you already know it."},{"t":"say","x":"يلا — yalla. You've heard it in every Arabic song, every Arab family, every airport. But you don't know how deep it goes."},{"t":"note","x":"rapid skit cuts, 2s each"},{"t":"say","x":"Leaving the house? Yalla. Friend's too slow? YALLA. Ending a phone call? Yalla, yalla — bye."},{"t":"say","x":"And when an Egyptian mom says it ONCE, quietly?… You have already lost."},{"t":"say","x":"Now upgrade it. يلا بينا — yalla beena — \"let's go, all of us\" — for the group. And يلا توكلنا — yalla tawakkalna — for starting a journey or something big — it adds a little faith to the momentum."},{"t":"say","x":"Homework: count the yallas in the next Arabic movie or family call you're in — report the number in the comments. I'm betting double digits."}]},{"n":19,"title":"\"I Miss You\" — to the Wrong Gender","dur":"~35s","beats":[{"t":"say","x":"You finally said \"I miss you\" in Arabic… to the wrong gender. Now it's weird."},{"t":"say","x":"Ten-second fix. To a guy: وحشتني — wahashtini. To a woman: وحشتيني — wahashteeni. Hear it? One tiny extra sound — -tee- — and it flips."},{"t":"say","x":"wahashTEEni! *(friend stops dead)* …bro?"},{"t":"say","x":"And for a whole group — back from a trip, walking into the family gathering: وحشتوني — wahashtouni — \"I missed you ALL.\" Say them with me once: wahashtini… wahashteeni… wahashtouni. Him, her, everyone."},{"t":"say","x":"Tag the person you've been missing — with the RIGHT version this time. I'll be checking your endings."}]}];
+
+  const $ = (id) => document.getElementById(id);
+  const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
+        picker = $("picker"), list = $("list"), count = $("count"),
+        remain = $("remain"), progress = $("progress");
+
+  // ---------- state ----------
+  let st = { idx: 0, mult: 1, font: 38, notes: true };
+  try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
+  st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
+  const save = () => { try { localStorage.setItem("awm-prompter", JSON.stringify(st)); } catch {} };
+
+  let playing = false, raf = 0, last = 0, hideTimer = 0, countTimer = 0, wakeLock = null;
+  let takeMs = 0; // running read time of the current take
+
+  const pxPerSec = () => st.font * 1.05 * st.mult;
+  const focusY = () => innerHeight * 0.30;
+  const fmtSec = (ms) => Math.round(ms / 1000) + "s";
+
+  // ---------- render ----------
+  function render() {
+    const s = SCRIPTS[st.idx];
+    let html = `<div class="script-head"><div class="eyebrow">Script ${s.n}${s.dur ? " · " + s.dur : ""}</div><h1>${s.title}</h1></div>`;
+    for (const b of s.beats)
+      html += `<p class="${b.t}" dir="ltr">${b.x}</p>`;
+    html += `<div class="end-slate">— end —</div>`;
+    lines.innerHTML = html;
+    $("scriptBtn").querySelector(".num").textContent = s.n;
+    $("scriptBtn").querySelector(".ttl").textContent = s.title;
+    scroll.scrollTop = 0;
+    takeMs = 0;
+    paint();
+  }
+
+  function paint() {
+    const fy = focusY();
+    const els = lines.querySelectorAll(".say, .note");
+    // a block stays active until its LAST line has scrolled past the marker
+    let active = null;
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      el.className = el.className.replace(/\s*(read|active|up)\b/g, "");
+      if (r.bottom < fy - 6) el.classList.add("read");
+      else if (!active) { active = el; el.classList.add("active"); }
+      else el.classList.add("up");
+    }
+    const max = scroll.scrollHeight - scroll.clientHeight;
+    progress.style.width = max > 0 ? (scroll.scrollTop / max) * 100 + "%" : "0%";
+    if (playing)
+      remain.textContent = fmtSec(takeMs) + " · ≈" +
+        Math.max(0, Math.round((max - scroll.scrollTop) / pxPerSec())) + "s left";
+  }
+
+  // ---------- playback ----------
+  function step(t) {
+    if (!playing) return;
+    if (last) {
+      const dt = t - last;
+      takeMs += dt;
+      scroll.scrollTop += (pxPerSec() * dt) / 1000;
+      const max = scroll.scrollHeight - scroll.clientHeight;
+      if (scroll.scrollTop >= max - 1) { finishTake(); return; }
+    }
+    last = t;
+    paint();
+    raf = requestAnimationFrame(step);
+  }
+
+  function finishTake() {
+    pause();
+    const s = SCRIPTS[st.idx];
+    const slate = lines.querySelector(".end-slate");
+    if (slate)
+      slate.textContent = "— end · take " + fmtSec(takeMs) +
+        (s.dur ? " · target " + s.dur : "") + " —";
+  }
+
+  async function grabWakeLock() {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  }
+
+  function play(skipCount) {
+    if (playing) return;
+    clearTimeout(countTimer);
+    const go = () => {
+      count.className = ""; count.textContent = "";
+      if (scroll.scrollTop <= 5) takeMs = 0; // fresh take from the top
+      playing = true; last = 0;
+      document.body.classList.add("playing");
+      $("playIco").style.display = "none";
+      $("pauseIco").style.display = "";
+      $("playBtn").setAttribute("aria-label", "Pause");
+      grabWakeLock();
+      scheduleHide();
+      raf = requestAnimationFrame(step);
+    };
+    if (skipCount) { go(); return; }
+    let n = 3;
+    const tick = () => {
+      if (n === 0) { go(); return; }
+      count.textContent = n--;
+      count.className = "";
+      void count.offsetWidth; // restart animation
+      count.className = "tick";
+      countTimer = setTimeout(tick, 700);
+    };
+    tick();
+  }
+
+  function pause() {
+    clearTimeout(countTimer);
+    count.className = ""; count.textContent = "";
+    if (!playing) { showUI(); return; }
+    playing = false;
+    cancelAnimationFrame(raf);
+    document.body.classList.remove("playing");
+    $("playIco").style.display = "";
+    $("pauseIco").style.display = "none";
+    $("playBtn").setAttribute("aria-label", "Play");
+    wakeLock?.release().catch(() => {}); wakeLock = null;
+    showUI();
+    paint();
+  }
+
+  const toggle = () => (playing || count.textContent ? pause() : play());
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && playing) grabWakeLock();
+  });
+
+  // ---------- UI hiding ----------
+  function showUI() {
+    document.body.classList.remove("hide-ui");
+    clearTimeout(hideTimer);
+    if (playing) scheduleHide();
+  }
+  function scheduleHide() {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (playing) document.body.classList.add("hide-ui");
+    }, 2200);
+  }
+
+  // ---------- tap vs scroll on the prompter ----------
+  let px = 0, py = 0, pt = 0;
+  scroll.addEventListener("pointerdown", (e) => {
+    px = e.clientX; py = e.clientY; pt = Date.now();
+    showUI();
+  });
+  scroll.addEventListener("pointerup", (e) => {
+    if (Math.hypot(e.clientX - px, e.clientY - py) < 12 && Date.now() - pt < 500) toggle();
+  });
+  // grabbing the text while rolling stops it
+  scroll.addEventListener("touchmove", () => { if (playing) pause(); }, { passive: true });
+  scroll.addEventListener("wheel", () => { if (playing) pause(); }, { passive: true });
+  scroll.addEventListener("scroll", () => { if (!playing) paint(); }, { passive: true });
+
+  // ---------- navigation ----------
+  function resetTop() {
+    pause();
+    takeMs = 0;
+    scroll.scrollTop = 0;
+    paint();
+  }
+
+  // rewind so the current paragraph's first line sits on the marker;
+  // if it had barely started, go back one more paragraph
+  function retake() {
+    pause();
+    const els = [...lines.querySelectorAll(".say, .note")];
+    if (!els.length) return;
+    const fy = focusY();
+    let i = els.findIndex((el) => el.getBoundingClientRect().bottom >= fy - 6);
+    if (i === -1) i = els.length - 1;
+    if (i > 0 && els[i].getBoundingClientRect().top > fy - 20) i--;
+    scroll.scrollTop += els[i].getBoundingClientRect().top - fy;
+    paint();
+  }
+
+  function nextScript() {
+    pause();
+    st.idx = (st.idx + 1) % SCRIPTS.length;
+    save();
+    takeMs = 0;
+    render();
+  }
+
+  // ---------- controls ----------
+  $("playBtn").addEventListener("click", toggle);
+  $("restartBtn").addEventListener("click", resetTop);
+
+  document.querySelectorAll(".chip").forEach((ch) =>
+    ch.addEventListener("click", () => {
+      st.mult = parseFloat(ch.dataset.m); save();
+      document.querySelectorAll(".chip").forEach((c) =>
+        c.setAttribute("aria-pressed", c === ch ? "true" : "false"));
+    })
+  );
+
+  const setFont = (v) => {
+    st.font = Math.min(64, Math.max(26, v)); save();
+    document.documentElement.style.setProperty("--font", st.font + "px");
+    paint();
+  };
+  $("fontUp").addEventListener("click", () => setFont(st.font + 3));
+  $("fontDown").addEventListener("click", () => setFont(st.font - 3));
+
+  // ---------- picker ----------
+  function buildList() {
+    list.innerHTML = "";
+    SCRIPTS.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "row" + (i === st.idx ? " current" : "");
+      b.innerHTML = `<span class="num">${s.n}</span><span class="ttl">${s.title}</span><span class="dur">${s.dur}</span>`;
+      b.addEventListener("click", () => {
+        pause();
+        st.idx = i; save();
+        render();
+        picker.classList.remove("open");
+      });
+      list.appendChild(b);
+    });
+  }
+  $("scriptBtn").addEventListener("click", () => { pause(); buildList(); picker.classList.add("open"); });
+  $("closePicker").addEventListener("click", () => picker.classList.remove("open"));
+
+  const notesBtn = $("notesToggle");
+  const applyNotes = () => {
+    document.body.classList.toggle("no-notes", !st.notes);
+    notesBtn.setAttribute("aria-pressed", String(st.notes));
+  };
+  notesBtn.addEventListener("click", () => { st.notes = !st.notes; save(); applyNotes(); paint(); });
+
+  // ---------- voice commands (say the word twice) ----------
+  const flashEl = $("flash");
+  let audioCtx = null;
+  function beep(hz) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = hz;
+      g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+      o.connect(g).connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + 0.13);
+    } catch {}
+  }
+  function flash(word) {
+    flashEl.textContent = word;
+    flashEl.className = "";
+    void flashEl.offsetWidth;
+    flashEl.className = "show";
+  }
+
+  const VOICE_CMDS = {
+    action: { hz: 784, run: () => { if (!playing) play(); } },
+    cut:    { hz: 392, run: pause },
+    back:   { hz: 523, run: retake },
+    next:   { hz: 659, run: nextScript },
+    reset:  { hz: 523, run: resetTop },
+  };
+  const lastCmd = {};
+  function handleSpeech(txt) {
+    txt = txt.toLowerCase();
+    for (const w in VOICE_CMDS) {
+      // the word twice in a row (only punctuation/spaces between) = a command
+      if (!new RegExp("\\b" + w + "\\b[^a-z]{0,8}\\b" + w + "\\b").test(txt)) continue;
+      if (Date.now() - (lastCmd[w] || 0) < 2500) continue;
+      lastCmd[w] = Date.now();
+      const c = VOICE_CMDS[w];
+      flash(w);
+      beep(c.hz);
+      c.run();
+    }
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = $("micBtn");
+  let rec = null, voiceOn = false;
+
+  function setVoiceUI() {
+    micBtn.setAttribute("aria-pressed", String(voiceOn));
+    micBtn.setAttribute("aria-label", voiceOn ? "Voice commands on" : "Voice commands off");
+    document.body.classList.toggle("voice", voiceOn);
+  }
+
+  function startRec() {
+    if (!SR || rec) return;
+    rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.onresult = (e) => {
+      let txt = "";
+      for (let i = e.resultIndex; i < e.results.length; i++)
+        txt += " " + e.results[i][0].transcript;
+      handleSpeech(txt);
+    };
+    rec.onend = () => {
+      rec = null;
+      if (voiceOn) setTimeout(startRec, 300); // engines stop on silence — keep it alive
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        voiceOn = false;
+        setVoiceUI();
+        flash("mic blocked");
+        beep(220);
+      }
+    };
+    try { rec.start(); } catch { rec = null; }
+  }
+
+  if (!SR) micBtn.setAttribute("disabled", "");
+  micBtn.addEventListener("click", () => {
+    voiceOn = !voiceOn;
+    setVoiceUI();
+    if (voiceOn) { beep(784); startRec(); }
+    else { try { rec?.stop(); } catch {} rec = null; }
+  });
+
+  // ---------- keyboard & bluetooth clicker ----------
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { picker.classList.remove("open"); return; }
+    if (picker.classList.contains("open")) return;
+    const onButton = e.target instanceof Element && e.target.closest("button");
+    if ([" ", "Enter"].includes(e.key) && onButton) return; // native click handles it
+    if ([" ", "Enter", "PageDown", "ArrowRight"].includes(e.key)) {
+      e.preventDefault(); toggle();
+    } else if (["PageUp", "ArrowLeft"].includes(e.key)) {
+      e.preventDefault(); retake();
+    } else if (e.key === "Home") {
+      e.preventDefault(); resetTop();
+    }
+  });
+
+  addEventListener("resize", paint);
+
+  // ---------- boot ----------
+  document.documentElement.style.setProperty("--font", st.font + "px");
+  document.querySelectorAll(".chip").forEach((c) =>
+    c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
+  applyNotes();
+  render();
+})();
+</script>
+
+</html>
