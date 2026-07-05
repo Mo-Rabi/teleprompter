@@ -21,6 +21,7 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  if (!e.request.url.startsWith("http")) return; // extensions etc. — not cacheable
   const isImmutable = IMMUTABLE.some((f) => e.request.url.endsWith(f));
 
   if (isImmutable) {
