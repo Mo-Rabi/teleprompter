@@ -482,6 +482,8 @@
 
   let playing = false, raf = 0, last = 0, hideTimer = 0, countTimer = 0, wakeLock = null;
   let takeMs = 0; // running read time of the current take
+  let pos = 0;    // true scroll position as a float — scrollTop rounds to whole
+                  // pixels, so accumulating on it quantizes every speed to ~1px/frame
 
   const pxPerSec = () => st.font * 1.05 * st.mult;
   const focusY = () => innerHeight * 0.30;
@@ -527,9 +529,10 @@
     if (last) {
       const dt = t - last;
       takeMs += dt;
-      scroll.scrollTop += (pxPerSec() * dt) / 1000;
+      pos += (pxPerSec() * dt) / 1000;
+      scroll.scrollTop = pos;
       const max = scroll.scrollHeight - scroll.clientHeight;
-      if (scroll.scrollTop >= max - 1) { finishTake(); return; }
+      if (pos >= max - 1) { finishTake(); return; }
     }
     last = t;
     paint();
@@ -555,6 +558,7 @@
     const go = () => {
       count.className = ""; count.textContent = "";
       if (scroll.scrollTop <= 5) takeMs = 0; // fresh take from the top
+      pos = scroll.scrollTop; // resync the float position to wherever the user left it
       playing = true; last = 0;
       document.body.classList.add("playing");
       $("playIco").style.display = "none";
