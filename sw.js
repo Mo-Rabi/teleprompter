@@ -1,6 +1,7 @@
 // index.html: network-first so script updates arrive immediately when online.
 // vosk engine + speech model (~46MB total): cache-first — immutable, downloaded once.
-const CACHE = "prompter-v2";
+// v3: purges the line-ending-corrupted vosk.js cached by v2
+const CACHE = "prompter-v3";
 const ASSETS = ["./", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const IMMUTABLE = ["vosk.js", "model-small-en-us.tar.gz"];
 
