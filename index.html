@@ -428,7 +428,8 @@
   <span class="chips" role="group" aria-label="Speed">
     <span class="lbl">Speed</span>
     <button class="chip" data-m="0.8">0.8×</button>
-    <button class="chip" data-m="1" aria-pressed="true">1×</button>
+    <button class="chip" data-m="0.9" aria-pressed="true">0.9×</button>
+    <button class="chip" data-m="1">1×</button>
     <button class="chip" data-m="1.2">1.2×</button>
     <button class="chip" data-m="1.5">1.5×</button>
   </span>
@@ -473,9 +474,10 @@
         remain = $("remain"), progress = $("progress");
 
   // ---------- state ----------
-  let st = { idx: 0, mult: 1, font: 38, notes: true };
+  let st = { idx: 0, mult: 0.9, font: 38, notes: true };
   try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
   st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
+  if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
   const save = () => { try { localStorage.setItem("awm-prompter", JSON.stringify(st)); } catch {} };
 
   let playing = false, raf = 0, last = 0, hideTimer = 0, countTimer = 0, wakeLock = null;
