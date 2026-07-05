@@ -157,6 +157,20 @@
   }
   body.voice #micLive { display: flex; }
   #micLive svg { width: 13px; height: 13px; fill: var(--accent); }
+  #heard {
+    position: fixed;
+    top: 32px; left: 14px;
+    display: none;
+    max-width: 62vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    z-index: 6;
+    font-size: 11px;
+    font-style: italic;
+    color: var(--muted);
+  }
+  body.voice #heard { display: block; }
 
   /* ---------- voice command flash ---------- */
   #flash {
@@ -445,6 +459,7 @@
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   LISTENING
 </div>
+<div id="heard"></div>
 <div id="flash" aria-hidden="true"></div>
 <div class="chev l"></div>
 <div class="chev r"></div>
@@ -815,7 +830,7 @@
   }
 
   const VOICE_CMDS = {
-    action: { hz: 784, run: () => { if (!playing) play(); } },
+    action: { hz: 784, run: () => { if (!playing && !count.textContent) play(); } },
     cut:    { hz: 392, run: pause },
     back:   { hz: 523, run: retake },
     next:   { hz: 659, run: nextScript },
@@ -832,8 +847,15 @@
   const SCRIPT_RE = /\bscripts?\s+(\d{1,2}|[a-z]+)\b/;
 
   const lastCmd = {};
+  const heardEl = $("heard");
+  let heardTimer = 0;
   function handleSpeech(txt) {
     txt = txt.toLowerCase();
+    if (txt.trim()) {
+      heardEl.textContent = "“…" + txt.trim().slice(-48) + "”";
+      clearTimeout(heardTimer);
+      heardTimer = setTimeout(() => { heardEl.textContent = ""; }, 4000);
+    }
     const sm = txt.match(SCRIPT_RE);
     if (sm && Date.now() - (lastCmd.script || 0) > 2500) {
       const n = /^\d/.test(sm[1]) ? Number(sm[1]) : NUM_WORDS[sm[1]];
@@ -961,8 +983,11 @@
     };
     rec.onend = () => {
       rec = null;
-      // engines stop on silence — keep it alive (but not while backgrounded)
-      if (voiceOn && !document.hidden) setTimeout(startRec, 300);
+      // engines stop on silence — keep it alive (but not while backgrounded).
+      // offline, every restart makes Android play its recognizer chime, so
+      // back way off and let the 'online' event resume us instead
+      if (voiceOn && !document.hidden)
+        setTimeout(startRec, navigator.onLine ? 300 : 8000);
     };
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -994,6 +1019,7 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && voiceOn && !rec) startRec();
   });
+  addEventListener("online", () => { if (voiceOn && !rec) startRec(); });
   document.addEventListener("pointerdown", () => {
     try { audioCtx?.resume(); } catch {}
     try { voskCtx?.resume(); } catch {}
