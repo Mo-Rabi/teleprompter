@@ -858,6 +858,26 @@
   const micBtn = $("micBtn");
   let rec = null, voiceOn = false;
 
+  // on-device recognition (Chrome 139+): works offline once the model is
+  // installed; falls back to server-based recognition everywhere else
+  let localMode = false;
+  const micLive = $("micLive");
+  const setMicLabel = () => {
+    micLive.lastChild.textContent = localMode ? "LISTENING · OFFLINE" : "LISTENING";
+  };
+  async function initLocalSpeech() {
+    try {
+      if (!SR || typeof SR.available !== "function") return;
+      const opts = { langs: ["en-US"], processLocally: true };
+      const state = await SR.available(opts);
+      if (state === "available") localMode = true;
+      else if (state === "downloadable" || state === "downloading")
+        localMode = !!(await SR.install(opts));
+      setMicLabel();
+      if (localMode && rec) { try { rec.stop(); } catch {} } // restart in local mode
+    } catch {}
+  }
+
   function setVoiceUI() {
     micBtn.setAttribute("aria-pressed", String(voiceOn));
     micBtn.setAttribute("aria-label", voiceOn ? "Voice commands on" : "Voice commands off");
@@ -870,6 +890,7 @@
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-US";
+    if (localMode) try { rec.processLocally = true; } catch {}
     rec.onresult = (e) => {
       let txt = "";
       for (let i = e.resultIndex; i < e.results.length; i++)
@@ -887,6 +908,11 @@
         setVoiceUI();
         flash("mic blocked");
         beep(220);
+      } else if (localMode) {
+        // local model misbehaved — fall back to server recognition
+        localMode = false;
+        setMicLabel();
+        try { rec.stop(); } catch {}
       }
     };
     try { rec.start(); } catch { rec = null; }
@@ -897,7 +923,7 @@
     voiceOn = !voiceOn;
     st.voice = voiceOn; save();
     setVoiceUI();
-    if (voiceOn) { beep(784); startRec(); }
+    if (voiceOn) { beep(784); initLocalSpeech(); startRec(); }
     else { try { rec?.stop(); } catch {} rec = null; }
   });
 
@@ -938,7 +964,7 @@
     c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
   applyNotes();
   render();
-  if (st.voice && SR) { voiceOn = true; setVoiceUI(); startRec(); }
+  if (st.voice && SR) { voiceOn = true; setVoiceUI(); initLocalSpeech(); startRec(); }
 })();
 </script>
 
