@@ -660,6 +660,51 @@
     font-weight: 600;
     margin: 22px 0 8px;
   }
+
+  /* Batch grouping in script picker */
+  .batch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255, 140, 66, 0.08);
+    border: 1px solid rgba(255, 140, 66, 0.15);
+    border-radius: 8px;
+    margin: 16px 0 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .batch-header:hover {
+    background: rgba(255, 140, 66, 0.12);
+    border-color: rgba(255, 140, 66, 0.25);
+  }
+  .batch-header .batch-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .batch-header .batch-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .batch-header .batch-arrow {
+    font-size: 14px;
+    color: var(--muted);
+    transition: transform 0.3s ease;
+  }
+  .batch-header.collapsed .batch-arrow {
+    transform: rotate(-90deg);
+  }
+  .batch-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .batch-content.collapsed {
+    max-height: 0;
+  }
   .help-row {
     display: flex;
     align-items: baseline;
@@ -1323,45 +1368,113 @@
     // same counter in the main bar, next to the script title
     document.querySelector("#scriptBtn .cnt").textContent = `${n}/${SCRIPTS.length} ✓`;
   }
+
+  // Batch definitions
+  const BATCHES = [
+    { name: "Batch 1", start: 1, end: 15 },
+    { name: "Batch 2", start: 16, end: 35 },
+    { name: "Batch 3", start: 36, end: 50 },
+    { name: "Batch 4", start: 51, end: 999 } // Dynamic for future scripts
+  ];
+
+  function getBatchForScript(scriptNum) {
+    for (let i = BATCHES.length - 1; i >= 0; i--) {
+      if (scriptNum >= BATCHES[i].start && scriptNum <= BATCHES[i].end) {
+        return i;
+      }
+    }
+    return BATCHES.length - 1; // Default to last batch
+  }
+
+  function getLatestBatch() {
+    let maxBatch = 0;
+    SCRIPTS.forEach(s => {
+      const batch = getBatchForScript(s.n);
+      if (batch > maxBatch) maxBatch = batch;
+    });
+    return maxBatch;
+  }
+
   function buildList() {
     list.innerHTML = "";
     if (!st.done) st.done = {};
-    SCRIPTS.forEach((s, i) => {
-      const b = document.createElement("button");
-      const isDone = () => !!st.done[s.n];
-      b.className = "row" + (i === st.idx ? " current" : "") + (isDone() ? " done" : "");
+    
+    const latestBatch = getLatestBatch();
+    
+    BATCHES.forEach((batch, batchIndex) => {
+      // Filter scripts for this batch
+      const batchScripts = SCRIPTS.filter(s => s.n >= batch.start && s.n <= batch.end);
       
-      // Parse duration for visual bar
-      let durWidth = "0%";
-      const durMatch = (s.dur || "").match(/(\d+)/);
-      if (durMatch) {
-        const durSec = Number(durMatch[1]);
-        const maxDur = 60; // Assume 60s as max for visualization
-        durWidth = Math.min(100, (durSec / maxDur) * 100) + "%";
-      }
+      if (batchScripts.length === 0) return; // Skip empty batches
       
-      b.innerHTML = `<span class="num">${s.n}</span><span class="ttl">${s.title}</span>
-        <span class="dur">${s.dur}</span>
-        <span class="dur-bar"><span class="dur-fill" style="width: ${durWidth}"></span></span>
-        <span class="chk" role="checkbox" aria-checked="${isDone()}" aria-label="filmed and edited">✓</span>`;
-      b.querySelector(".chk").addEventListener("click", (e) => {
-        e.stopPropagation();
-        const wasDone = isDone();
-        if (isDone()) delete st.done[s.n]; else st.done[s.n] = 1;
-        save();
-        b.classList.toggle("done", isDone());
-        b.querySelector(".chk").setAttribute("aria-checked", isDone());
-        updateDoneTally();
-        if (!wasDone && isDone()) celebrate();
+      // Create batch header
+      const batchHeader = document.createElement("div");
+      batchHeader.className = "batch-header" + (batchIndex !== latestBatch ? " collapsed" : "");
+      const batchDoneCount = batchScripts.filter(s => st.done[s.n]).length;
+      
+      batchHeader.innerHTML = `
+        <span class="batch-title">${batch.name}</span>
+        <span class="batch-count">${batchDoneCount}/${batchScripts.length} done</span>
+        <span class="batch-arrow">▼</span>
+      `;
+      
+      // Create batch content container
+      const batchContent = document.createElement("div");
+      batchContent.className = "batch-content" + (batchIndex !== latestBatch ? " collapsed" : "");
+      
+      // Add script rows for this batch
+      batchScripts.forEach((s) => {
+        const i = SCRIPTS.indexOf(s);
+        const b = document.createElement("button");
+        const isDone = () => !!st.done[s.n];
+        b.className = "row" + (i === st.idx ? " current" : "") + (isDone() ? " done" : "");
+        
+        // Parse duration for visual bar
+        let durWidth = "0%";
+        const durMatch = (s.dur || "").match(/(\d+)/);
+        if (durMatch) {
+          const durSec = Number(durMatch[1]);
+          const maxDur = 60; // Assume 60s as max for visualization
+          durWidth = Math.min(100, (durSec / maxDur) * 100) + "%";
+        }
+        
+        b.innerHTML = `<span class="num">${s.n}</span><span class="ttl">${s.title}</span>
+          <span class="dur">${s.dur}</span>
+          <span class="dur-bar"><span class="dur-fill" style="width: ${durWidth}"></span></span>
+          <span class="chk" role="checkbox" aria-checked="${isDone()}" aria-label="filmed and edited">✓</span>`;
+        b.querySelector(".chk").addEventListener("click", (e) => {
+          e.stopPropagation();
+          const wasDone = !!st.done[s.n];
+          if (wasDone) delete st.done[s.n]; else st.done[s.n] = 1;
+          save();
+          const isNowDone = !!st.done[s.n];
+          b.classList.toggle("done", isNowDone);
+          b.querySelector(".chk").setAttribute("aria-checked", isNowDone);
+          updateDoneTally();
+          // Update batch count
+          const newBatchDoneCount = batchScripts.filter(s => st.done[s.n]).length;
+          batchHeader.querySelector(".batch-count").textContent = `${newBatchDoneCount}/${batchScripts.length} done`;
+          if (!wasDone && isNowDone) celebrate();
+        });
+        b.addEventListener("click", () => {
+          pause();
+          st.idx = i; save();
+          render();
+          picker.classList.remove("open");
+        });
+        batchContent.appendChild(b);
       });
-      b.addEventListener("click", () => {
-        pause();
-        st.idx = i; save();
-        render();
-        picker.classList.remove("open");
+      
+      // Toggle collapse/expand
+      batchHeader.addEventListener("click", () => {
+        batchHeader.classList.toggle("collapsed");
+        batchContent.classList.toggle("collapsed");
       });
-      list.appendChild(b);
+      
+      list.appendChild(batchHeader);
+      list.appendChild(batchContent);
     });
+    
     updateDoneTally();
   }
   $("scriptBtn").addEventListener("click", () => { pause(); buildList(); picker.classList.add("open"); });
