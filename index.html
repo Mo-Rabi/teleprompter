@@ -4,21 +4,25 @@
 <title>Mo's Teleprompter</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#08090b">
+<meta name="theme-color" content="#ff8c42">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
 <script src="vosk.js" defer></script>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308090b'/%3E%3Crect x='15' y='14' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.22'/%3E%3Crect x='15' y='29' width='34' height='7' rx='3.5' fill='%23f4f1e9'/%3E%3Cpath d='M5 26l7 6.5-7 6.5z' fill='%23ffb347'/%3E%3Cpath d='M59 26l-7 6.5 7 6.5z' fill='%23ffb347'/%3E%3Crect x='15' y='45' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.45'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308090b'/%3E%3Crect x='15' y='14' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.22'/%3E%3Crect x='15' y='29' width='34' height='7' rx='3.5' fill='%23f4f1e9'/%3E%3Cpath d='M5 26l7 6.5-7 6.5z' fill='%23ff8c42'/%3E%3Cpath d='M59 26l-7 6.5 7 6.5z' fill='%23ff8c42'/%3E%3Crect x='15' y='45' width='34' height='6' rx='3' fill='%23f4f1e9' opacity='.45'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #08090b;
     --ink: #f4f1e9;
     --muted: #97917f;
-    --accent: #ffb347;
+    --accent: #ff8c42;
     --rec: #ff5348;
     --hairline: rgba(244, 241, 233, 0.14);
     --bar-bg: rgba(13, 14, 17, 0.92);
     --font: 38px;
     --focus-y: 30;
+    --focus-pos: 30;
   }
 
   html, body { height: 100%; }
@@ -31,6 +35,12 @@
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  /* Display font for headings */
+  .script-head h1, .script-head .eyebrow, .end-slate, 
+  #picker header .h, #help header .h, #notesCard header .h {
+    font-family: "Outfit", system-ui, -apple-system, sans-serif;
   }
 
   /* On a real pointer (laptop/desktop) let the script text be selected and
@@ -108,7 +118,20 @@
 
   .say.read, .note.read { opacity: 0.22; }
   .say.up,   .note.up   { opacity: 0.5; }
-  .say.active            { opacity: 1; }
+  .say.active            { 
+    opacity: 1; 
+    text-shadow: 0 0 30px rgba(255, 179, 71, 0.3);
+    position: relative;
+  }
+  .say.active::before {
+    content: "";
+    position: absolute;
+    inset: -8px -24px;
+    background: radial-gradient(ellipse at center, rgba(255, 179, 71, 0.08) 0%, transparent 70%);
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: -1;
+  }
   .note.active           { opacity: 0.85; }
 
   .end-slate {
@@ -124,14 +147,31 @@
     position: fixed;
     top: calc(var(--focus-y) * 1dvh);
     width: 0; height: 0;
-    border-top: 18px solid transparent;
-    border-bottom: 18px solid transparent;
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
     transform: translateY(-50%);
     pointer-events: none;
     z-index: 3;
+    filter: drop-shadow(0 0 8px rgba(255, 179, 71, 0.4));
+    transition: all 0.3s ease;
   }
-  .chev.l { left: 8px;  border-left: 24px solid var(--accent); }
-  .chev.r { right: 8px; border-right: 24px solid var(--accent); }
+  .chev.l { left: 12px;  border-left: 20px solid var(--accent); }
+  .chev.r { right: 12px; border-right: 20px solid var(--accent); }
+  
+  /* Elegant center line indicator */
+  .focus-line {
+    position: fixed;
+    top: calc(var(--focus-y) * 1dvh);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 3;
+    border-radius: 2px;
+  }
 
   /* ---------- progress + status ---------- */
   #progress {
@@ -162,6 +202,32 @@
     animation: pulse 1.4s ease-in-out infinite;
   }
   @keyframes pulse { 50% { opacity: 0.35; } }
+
+  /* Take counter and session timer */
+  #filmingStats {
+    position: fixed;
+    top: 10px; right: 14px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    z-index: 6;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  body.playing #filmingStats { display: flex; }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-label {
+    color: var(--accent);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
   #micLive {
     position: fixed;
     top: 10px; left: 14px;
@@ -176,6 +242,24 @@
   }
   body.voice #micLive { display: flex; }
   #micLive svg { width: 13px; height: 13px; fill: var(--accent); }
+  
+  /* Voice activity indicator */
+  .voice-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0;
+  }
+  body.voice.processing .voice-ring {
+    animation: voice-pulse 1.5s ease-out infinite;
+  }
+  @keyframes voice-pulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+  }
   #heard {
     position: fixed;
     top: 32px; left: 14px;
@@ -234,9 +318,29 @@
   }
   #flash.show { display: block; animation: flashfade 0.9s ease-out forwards; }
   @keyframes flashfade {
-    from { opacity: 1; }
-    70%  { opacity: 1; }
-    to   { opacity: 0; }
+    0% { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(10px); }
+    20% { opacity: 1; transform: translateX(-50%) scale(1.1) translateY(0); }
+    30% { transform: translateX(-50%) scale(1) translateY(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(-5px); }
+  }
+
+  /* Confetti celebration effect */
+  .confetti {
+    position: fixed;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .confetti-piece {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    animation: confetti-fall 2s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
   }
 
   /* ---------- countdown ---------- */
@@ -278,6 +382,32 @@
   }
   body.hide-ui #bar { transform: translateY(110%); }
 
+  /* Progressive disclosure - advanced controls */
+  .advanced-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  body.playing .advanced-controls {
+    opacity: 0.2;
+    transform: scale(0.92);
+    pointer-events: none;
+  }
+  body.playing .advanced-controls:hover {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  
+  /* Simplified filming mode - reduce script picker prominence during playback */
+  body.playing #scriptBtn {
+    opacity: 0.6;
+  }
+  body.playing #scriptBtn:hover {
+    opacity: 1;
+  }
+
   button {
     font: inherit;
     color: var(--ink);
@@ -285,6 +415,15 @@
     border: 1px solid var(--hairline);
     border-radius: 10px;
     cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  button:hover {
+    background: rgba(255, 140, 66, 0.1);
+    border-color: rgba(255, 140, 66, 0.3);
+    transform: translateY(-1px);
+  }
+  button:active {
+    transform: translateY(1px);
   }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -319,13 +458,33 @@
     justify-content: center;
     border-radius: 50%;
     flex: none;
+    transition: all 0.2s ease;
   }
-  .icon-btn svg { width: 20px; height: 20px; fill: var(--ink); }
+  .icon-btn:hover {
+    background: rgba(255, 140, 66, 0.15);
+    border-color: rgba(255, 140, 66, 0.4);
+    transform: scale(1.05);
+  }
+  .icon-btn:active {
+    transform: scale(0.95);
+  }
+  .icon-btn svg { width: 20px; height: 20px; fill: var(--ink); transition: fill 0.2s ease; }
+  .icon-btn:hover svg { fill: var(--accent); }
 
   #playBtn {
     width: 58px; height: 58px;
     background: var(--accent);
     border-color: var(--accent);
+    transition: all 0.2s ease;
+  }
+  #playBtn:hover {
+    background: #ff9d57;
+    border-color: #ff9d57;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+  }
+  #playBtn:active {
+    transform: scale(0.95);
   }
   #playBtn svg { width: 24px; height: 24px; fill: #14100a; }
 
@@ -344,11 +503,21 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--muted);
+    transition: all 0.2s ease;
+  }
+  .chip:hover {
+    background: rgba(255, 140, 66, 0.1);
+    border-color: rgba(255, 140, 66, 0.3);
   }
   .chip[aria-pressed="true"] {
     color: #14100a;
     background: var(--accent);
     border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .chip[aria-pressed="true"]:hover {
+    background: #ff9d57;
+    border-color: #ff9d57;
   }
 
   .font-ctl { display: inline-flex; gap: 6px; }
@@ -359,6 +528,14 @@
   }
   .font-ctl .big { font-size: 19px; }
   .font-ctl .sml { font-size: 13px; }
+
+  .focus-ctl { display: inline-flex; gap: 6px; }
+  .focus-ctl button {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+  }
 
   #micBtn[aria-pressed="true"] {
     background: rgba(255, 179, 71, 0.18);
@@ -515,7 +692,7 @@
   .row {
     width: 100%;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 14px;
     padding: 14px 12px;
     border: none;
@@ -534,7 +711,26 @@
   }
   .row.current .num, .row.current .ttl { color: var(--accent); }
   .row .ttl { flex: 1; }
-  .row .dur { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .row .dur { 
+    color: var(--muted); 
+    font-size: 13px; 
+    font-variant-numeric: tabular-nums; 
+    min-width: 45px;
+  }
+  .row .dur-bar {
+    width: 35px;
+    height: 4px;
+    background: rgba(151, 145, 127, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    flex: none;
+  }
+  .row .dur-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
   /* "filmed & edited" checkmark — tap target is bigger than the visible circle */
   .row .chk {
     flex: none;
@@ -609,7 +805,18 @@
 
 <div id="progress"></div>
 <div id="status"><span class="dot"></span><span id="remain"></span></div>
+<div id="filmingStats">
+  <div class="stat-item">
+    <span class="stat-label">Take</span>
+    <span id="takeCount">1</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">Session</span>
+    <span id="sessionTime">0:00</span>
+  </div>
+</div>
 <div id="micLive">
+  <div class="voice-ring"></div>
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   LISTENING
 </div>
@@ -618,6 +825,7 @@
 <div id="flash" aria-hidden="true"></div>
 <div class="chev l"></div>
 <div class="chev r"></div>
+<div class="focus-line"></div>
 <div id="count" aria-hidden="true"></div>
 
 <div id="scroll"><div id="lines"></div></div>
@@ -633,19 +841,27 @@
     <svg id="playIco" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
     <svg id="pauseIco" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
   </button>
-  <span class="chips" role="group" aria-label="Speed">
-    <span class="lbl">Speed</span>
-    <button class="chip" data-m="0.5">0.5×</button>
-    <button class="chip" data-m="0.6">0.6×</button>
-    <button class="chip" data-m="0.7">0.7×</button>
-    <button class="chip" data-m="0.8">0.8×</button>
-    <button class="chip" data-m="0.9" aria-pressed="true">0.9×</button>
-    <button class="chip" data-m="1">1×</button>
-  </span>
-  <span class="font-ctl" role="group" aria-label="Text size">
-    <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
-    <button id="fontUp" class="big" aria-label="Bigger text">A+</button>
-  </span>
+  
+  <div class="advanced-controls">
+    <span class="chips" role="group" aria-label="Speed">
+      <span class="lbl">Speed</span>
+      <button class="chip" data-m="0.5">0.5×</button>
+      <button class="chip" data-m="0.6">0.6×</button>
+      <button class="chip" data-m="0.7">0.7×</button>
+      <button class="chip" data-m="0.8">0.8×</button>
+      <button class="chip" data-m="0.9" aria-pressed="true">0.9×</button>
+      <button class="chip" data-m="1">1×</button>
+    </span>
+    <span class="font-ctl" role="group" aria-label="Text size">
+      <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
+      <button id="fontUp" class="big" aria-label="Bigger text">A+</button>
+    </span>
+    <span class="focus-ctl" role="group" aria-label="Focus position">
+      <button id="focusUp" aria-label="Move focus up">↑</button>
+      <button id="focusDown" aria-label="Move focus down">↓</button>
+    </span>
+  </div>
+  
   <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
@@ -717,7 +933,7 @@
         remain = $("remain"), progress = $("progress");
 
   // ---------- state ----------
-  let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false, done: {} };
+  let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false, done: {}, focusPos: 30, takeCount: 1 };
   try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
   st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
@@ -738,6 +954,8 @@
   let takeMs = 0; // running read time of the current take
   let pos = 0;    // true scroll position as a float — scrollTop rounds to whole
                   // pixels, so accumulating on it quantizes every speed to ~1px/frame
+  let sessionStart = Date.now();
+  let sessionTimer = null;
 
   // speed is duration-based: at 1× the full scroll takes the script's own target
   // time (~40s etc.), measured against the rendered layout — so font size,
@@ -757,6 +975,12 @@
   const pxPerSec = () => basePxPerSec * st.mult;
   const focusY = () => innerHeight * 0.30;
   const fmtSec = (ms) => Math.round(ms / 1000) + "s";
+  const fmtTime = (ms) => {
+    const totalSec = Math.floor(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
 
   // ---------- render ----------
   function render() {
@@ -836,6 +1060,7 @@
       $("playBtn").setAttribute("aria-label", "Pause");
       grabWakeLock();
       scheduleHide();
+      startSessionTimer();
       raf = requestAnimationFrame(step);
     };
     if (skipCount) { go(); return; }
@@ -862,11 +1087,36 @@
     $("pauseIco").style.display = "none";
     $("playBtn").setAttribute("aria-label", "Play");
     wakeLock?.release().catch(() => {}); wakeLock = null;
+    st.takeCount++;
+    save();
+    $("takeCount").textContent = st.takeCount;
     showUI();
     paint();
   }
 
   const toggle = () => (playing || count.textContent ? pause() : play());
+
+  function startSessionTimer() {
+    if (sessionTimer) return; // Already running
+    sessionStart = Date.now();
+    sessionTimer = setInterval(() => {
+      const elapsed = Date.now() - sessionStart;
+      $("sessionTime").textContent = fmtTime(elapsed);
+    }, 1000);
+  }
+
+  function resetSessionTimer() {
+    stopSessionTimer();
+    sessionStart = Date.now();
+    $("sessionTime").textContent = "0:00";
+  }
+
+  function stopSessionTimer() {
+    if (sessionTimer) {
+      clearInterval(sessionTimer);
+      sessionTimer = null;
+    }
+  }
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && playing) grabWakeLock();
@@ -902,11 +1152,73 @@
   scroll.addEventListener("wheel", () => { if (playing) pause(); }, { passive: true });
   scroll.addEventListener("scroll", () => { if (!playing) paint(); }, { passive: true });
 
+  // ---------- gesture controls (swipe for speed and scripts) ----------
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  const SWIPE_THRESHOLD = 80;
+  const SWIPE_TIME_LIMIT = 300;
+
+  scroll.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  scroll.addEventListener("touchend", (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    const deltaTime = Date.now() - touchStartTime;
+
+    if (deltaTime > SWIPE_TIME_LIMIT) return; // Too slow, not a swipe
+
+    // Horizontal swipe for script navigation
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+      if (deltaX > 0) {
+        // Swipe right - previous script
+        const prevIdx = (st.idx - 1 + SCRIPTS.length) % SCRIPTS.length;
+        openScript(SCRIPTS[prevIdx].n);
+        beep(523);
+      } else {
+        // Swipe left - next script
+        nextScript();
+        beep(659);
+      }
+    }
+    // Vertical swipe for speed control
+    else if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > SWIPE_THRESHOLD) {
+      if (deltaY < 0) {
+        // Swipe up - increase speed
+        const speeds = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
+        const currentIdx = speeds.indexOf(st.mult);
+        if (currentIdx < speeds.length - 1) {
+          st.mult = speeds[currentIdx + 1];
+          save();
+          document.querySelectorAll(".chip").forEach((c) =>
+            c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
+          beep(784);
+        }
+      } else {
+        // Swipe down - decrease speed
+        const speeds = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
+        const currentIdx = speeds.indexOf(st.mult);
+        if (currentIdx > 0) {
+          st.mult = speeds[currentIdx - 1];
+          save();
+          document.querySelectorAll(".chip").forEach((c) =>
+            c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
+          beep(392);
+        }
+      }
+    }
+  }, { passive: true });
+
   // ---------- navigation ----------
   function resetTop() {
     pause();
     takeMs = 0;
     scroll.scrollTop = 0;
+    resetSessionTimer();
     paint();
   }
 
@@ -964,6 +1276,44 @@
   $("fontUp").addEventListener("click", () => setFont(st.font + 3));
   $("fontDown").addEventListener("click", () => setFont(st.font - 3));
 
+  const setFocus = (v) => {
+    st.focusPos = Math.min(70, Math.max(10, v)); save();
+    document.documentElement.style.setProperty("--focus-y", st.focusPos);
+    paint();
+  };
+  $("focusUp").addEventListener("click", () => setFocus(st.focusPos + 5));
+  $("focusDown").addEventListener("click", () => setFocus(st.focusPos - 5));
+
+  // Initialize focus position from saved state
+  if (st.focusPos) {
+    document.documentElement.style.setProperty("--focus-y", st.focusPos);
+  }
+
+  // Celebration confetti effect
+  function celebrate() {
+    const colors = ["#ff8c42", "#ffb347", "#ffd700", "#ff6b6b", "#4ecdc4"];
+    const confettiContainer = document.createElement("div");
+    confettiContainer.className = "confetti";
+    confettiContainer.style.left = "50%";
+    confettiContainer.style.top = "50%";
+    document.body.appendChild(confettiContainer);
+
+    for (let i = 0; i < 30; i++) {
+      const piece = document.createElement("div");
+      piece.className = "confetti-piece";
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.left = (Math.random() * 200 - 100) + "px";
+      piece.style.top = (Math.random() * 200 - 100) + "px";
+      piece.style.animationDelay = (Math.random() * 0.5) + "s";
+      piece.style.animationDuration = (1.5 + Math.random() * 1) + "s";
+      confettiContainer.appendChild(piece);
+    }
+
+    setTimeout(() => {
+      document.body.removeChild(confettiContainer);
+    }, 3000);
+  }
+
   // ---------- picker ----------
   // done = filmed AND edited, ticked off by Mo in the picker; keyed by script
   // number so it survives app updates and title tweaks
@@ -980,15 +1330,29 @@
       const b = document.createElement("button");
       const isDone = () => !!st.done[s.n];
       b.className = "row" + (i === st.idx ? " current" : "") + (isDone() ? " done" : "");
-      b.innerHTML = `<span class="num">${s.n}</span><span class="ttl">${s.title}</span><span class="dur">${s.dur}</span>` +
-        `<span class="chk" role="checkbox" aria-checked="${isDone()}" aria-label="filmed and edited">✓</span>`;
+      
+      // Parse duration for visual bar
+      let durWidth = "0%";
+      const durMatch = (s.dur || "").match(/(\d+)/);
+      if (durMatch) {
+        const durSec = Number(durMatch[1]);
+        const maxDur = 60; // Assume 60s as max for visualization
+        durWidth = Math.min(100, (durSec / maxDur) * 100) + "%";
+      }
+      
+      b.innerHTML = `<span class="num">${s.n}</span><span class="ttl">${s.title}</span>
+        <span class="dur">${s.dur}</span>
+        <span class="dur-bar"><span class="dur-fill" style="width: ${durWidth}"></span></span>
+        <span class="chk" role="checkbox" aria-checked="${isDone()}" aria-label="filmed and edited">✓</span>`;
       b.querySelector(".chk").addEventListener("click", (e) => {
         e.stopPropagation();
+        const wasDone = isDone();
         if (isDone()) delete st.done[s.n]; else st.done[s.n] = 1;
         save();
         b.classList.toggle("done", isDone());
         b.querySelector(".chk").setAttribute("aria-checked", isDone());
         updateDoneTally();
+        if (!wasDone && isDone()) celebrate();
       });
       b.addEventListener("click", () => {
         pause();
@@ -1058,20 +1422,25 @@
     } catch {}
   }
   function flash(word) {
-    flashEl.textContent = word;
+    const cmd = VOICE_CMDS[word];
+    if (cmd && cmd.icon) {
+      flashEl.textContent = cmd.icon + " " + word.toUpperCase();
+    } else {
+      flashEl.textContent = word.toUpperCase();
+    }
     flashEl.className = "";
     void flashEl.offsetWidth;
     flashEl.className = "show";
   }
 
   const VOICE_CMDS = {
-    action: { hz: 784, run: () => { if (!playing && !count.textContent) play(); } },
-    cut:    { hz: 392, run: pause },
-    back:   { hz: 523, run: retake },
-    next:   { hz: 659, run: nextScript },
-    reset:  { hz: 523, run: resetTop },
+    action: { hz: 784, icon: "🎬", run: () => { if (!playing && !count.textContent) play(); } },
+    cut:    { hz: 392, icon: "✂️", run: pause },
+    back:   { hz: 523, icon: "🔄", run: retake },
+    next:   { hz: 659, icon: "➡️", run: nextScript },
+    reset:  { hz: 523, icon: "⏮️", run: resetTop },
     // doubled like the rest so a spoken "notes" in a script can't trigger it
-    notes:  { hz: 880, run: () => notesModal.classList.contains("open") ? closeNotes() : openNotes() },
+    notes:  { hz: 880, icon: "📝", run: () => notesModal.classList.contains("open") ? closeNotes() : openNotes() },
   };
   // "script seven" / "script 7" jumps straight to that script; the recognizer
   // often mishears number words, so common homophones are accepted too
@@ -1087,11 +1456,17 @@
   const heardEl = $("heard");
   let heardTimer = 0;
   function handleSpeech(txt) {
+    document.body.classList.add("processing");
     txt = txt.toLowerCase();
     if (txt.trim()) {
       heardEl.textContent = "“…" + txt.trim().slice(-48) + "”";
       clearTimeout(heardTimer);
-      heardTimer = setTimeout(() => { heardEl.textContent = ""; }, 4000);
+      heardTimer = setTimeout(() => { 
+        heardEl.textContent = ""; 
+        document.body.classList.remove("processing");
+      }, 4000);
+    } else {
+      setTimeout(() => document.body.classList.remove("processing"), 500);
     }
     const sm = txt.match(SCRIPT_RE);
     if (sm && Date.now() - (lastCmd.script || 0) > 2500) {
@@ -1338,6 +1713,7 @@
     c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
   applyNotes();
   render();
+  $("takeCount").textContent = st.takeCount || 1;
   // announce version changes so a stale cached copy is unmistakable:
   // banner on update; no banner + old version in the bar = still stale
   if (st.lastVer !== VERSION) {
