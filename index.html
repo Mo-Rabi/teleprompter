@@ -39,7 +39,7 @@
 
   /* Display font for headings */
   .script-head h1, .script-head .eyebrow, .end-slate, 
-  #picker header .h, #help header .h, #notesCard header .h {
+  #picker header .h, #help header .h {
     font-family: "Outfit", system-ui, -apple-system, sans-serif;
   }
 
@@ -47,8 +47,7 @@
      copied — needed for quoting a line back when fixing a script. Touch
      devices keep selection off, or a drag-to-scroll turns into a text grab. */
   @media (pointer: fine) {
-    #scroll, #scroll *,
-    #notes, #notes * {
+    #scroll, #scroll * {
       user-select: text;
       -webkit-user-select: text;
       cursor: auto;
@@ -66,11 +65,10 @@
   }
   /* No visible scrollbars anywhere — this is a filming surface, and a track
      down the edge is one more thing to read past. Applies to the prompter and
-     to every scrollable panel (script picker, notes, help). */
-  #scroll, #list, #notesBody, .help-body { scrollbar-width: none; -ms-overflow-style: none; }
+     to every scrollable panel (script picker and help). */
+  #scroll, #list, .help-body { scrollbar-width: none; -ms-overflow-style: none; }
   #scroll::-webkit-scrollbar,
   #list::-webkit-scrollbar,
-  #notesBody::-webkit-scrollbar,
   .help-body::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
   #lines {
@@ -488,36 +486,29 @@
   }
   #playBtn svg { width: 24px; height: 24px; fill: #14100a; }
 
-  .chips { display: inline-flex; gap: 6px; align-items: center; }
-  .chips .lbl {
+  .speed-ctl { display: inline-flex; align-items: center; gap: 6px; }
+  .speed-ctl .lbl {
     font-size: 10px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--muted);
     margin-right: 2px;
   }
-  .chip {
-    padding: 8px 12px;
-    border-radius: 999px;
+  .speed-ctl button {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+  }
+  #speedValue {
+    min-width: 48px;
+    text-align: center;
     font-size: 14px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    color: var(--muted);
-    transition: all 0.2s ease;
-  }
-  .chip:hover {
-    background: rgba(255, 140, 66, 0.1);
-    border-color: rgba(255, 140, 66, 0.3);
-  }
-  .chip[aria-pressed="true"] {
-    color: #14100a;
-    background: var(--accent);
-    border-color: var(--accent);
-    transform: scale(1.05);
-  }
-  .chip[aria-pressed="true"]:hover {
-    background: #ff9d57;
-    border-color: #ff9d57;
+    color: var(--ink);
   }
 
   .font-ctl { display: inline-flex; gap: 6px; }
@@ -529,13 +520,16 @@
   .font-ctl .big { font-size: 19px; }
   .font-ctl .sml { font-size: 13px; }
 
-  .focus-ctl { display: inline-flex; gap: 6px; }
-  .focus-ctl button {
-    width: 46px; height: 46px;
-    border-radius: 10px;
-    font-weight: 700;
-    font-size: 14px;
+
+  .auto-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
   }
+  .auto-next input { width: 18px; height: 18px; accent-color: var(--accent); }
 
   #micBtn[aria-pressed="true"] {
     background: rgba(255, 179, 71, 0.18);
@@ -543,72 +537,6 @@
   }
   #micBtn[aria-pressed="true"] svg { fill: var(--accent); }
   #micBtn[disabled] { opacity: 0.35; cursor: default; }
-
-  /* ---------- editing-notes modal (say "notes" or tap 🎬) ---------- */
-  #notes {
-    position: fixed;
-    inset: 0;
-    z-index: 11;
-    background: rgba(8, 9, 11, 0.9);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  #notes.open { display: flex; }
-  #notesCard {
-    background: #16181d;
-    border: 1px solid var(--hairline);
-    border-top: 4px solid var(--accent);
-    border-radius: 16px;
-    max-width: 620px;
-    width: 100%;
-    max-height: 84dvh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-  }
-  #notesCard header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--hairline);
-  }
-  #notesCard header .h {
-    font-size: 12px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--accent);
-    font-weight: 700;
-  }
-  #notesCard header .sub { color: var(--muted); font-weight: 600; letter-spacing: 0; text-transform: none; }
-  #closeNotes { padding: 8px 14px; font-size: 14px; color: var(--muted); }
-  #notesBody {
-    overflow-y: auto;
-    padding: 8px 20px calc(18px + env(safe-area-inset-bottom));
-  }
-  .notes-sec {
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-weight: 600;
-    margin: 16px 0 8px;
-  }
-  .note-item {
-    display: flex;
-    gap: 12px;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--hairline);
-    font-size: 16px;
-    line-height: 1.5;
-    color: var(--ink);
-  }
-  .note-item::before { content: "▸"; color: var(--accent); flex: none; }
-  .note-item.global { color: var(--muted); }
-  .note-item.global::before { content: "★"; }
-  #notesEmpty { color: var(--muted); font-style: italic; padding: 14px 0; }
 
   /* ---------- picker + help overlays ---------- */
   #picker, #help {
@@ -954,58 +882,39 @@
   </button>
   
   <div class="advanced-controls">
-    <span class="chips" role="group" aria-label="Speed">
+    <span class="speed-ctl" role="group" aria-label="Speed">
       <span class="lbl">Speed</span>
-      <button class="chip" data-m="0.5">0.5×</button>
-      <button class="chip" data-m="0.6">0.6×</button>
-      <button class="chip" data-m="0.7">0.7×</button>
-      <button class="chip" data-m="0.8">0.8×</button>
-      <button class="chip" data-m="0.9" aria-pressed="true">0.9×</button>
-      <button class="chip" data-m="1">1×</button>
+      <button id="speedDown" aria-label="Slower">‹</button>
+      <span id="speedValue" aria-live="polite">0.9×</span>
+      <button id="speedUp" aria-label="Faster">›</button>
     </span>
     <span class="font-ctl" role="group" aria-label="Text size">
       <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
       <button id="fontUp" class="big" aria-label="Bigger text">A+</button>
     </span>
-    <span class="focus-ctl" role="group" aria-label="Focus position">
-      <button id="focusUp" aria-label="Move focus up">↑</button>
-      <button id="focusDown" aria-label="Move focus down">↓</button>
-    </span>
+    <label class="auto-next"><input id="autoNextToggle" type="checkbox"> <span>Something I want to try</span></label>
   </div>
   
   <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
-  <button id="notesBtn" class="icon-btn" aria-label="Editing notes" aria-haspopup="dialog">
-    <svg viewBox="0 0 24 24"><path d="M18 4v5H6V4H4v16h2v-5h12v5h2V4h-2zM8 4h8v3H8V4z"/></svg>
-  </button>
   <button id="helpBtn" class="icon-btn help-q" aria-label="Show commands">?</button>
-  <span class="ver">v260814.6ca4</span>
-</div>
-
-<div id="notes" role="dialog" aria-label="Editing notes">
-  <div id="notesCard">
-    <header>
-      <span class="h">🎬 Editing notes<span class="sub" id="notesFor"></span></span>
-      <button id="closeNotes">Close</button>
-    </header>
-    <div id="notesBody"></div>
-  </div>
+  <span class="ver">v260919.b4-prompter-controls</span>
 </div>
 
 <div id="help" role="dialog" aria-label="Commands">
   <header>
-    <span class="h">Commands · v260814.6ca4</span>
+    <span class="h">Commands · v260919.b4-prompter-controls</span>
     <button id="closeHelp">Close</button>
   </header>
   <div class="help-body">
-    <div class="help-sec">Voice — say it twice in a row</div>
+    <div class="help-sec">Voice — say a command twice as one short phrase</div>
+    <div class="help-row"><b>important</b><span>only exact standalone commands are acted on; script speech is ignored</span></div>
     <div class="help-row"><b>action action</b><span>3-2-1 countdown, then roll</span></div>
     <div class="help-row"><b>cut cut</b><span>stop scrolling</span></div>
     <div class="help-row"><b>back back</b><span>redo the current paragraph</span></div>
     <div class="help-row"><b>next next</b><span>next script, from the top</span></div>
     <div class="help-row"><b>reset reset</b><span>top of this script</span></div>
-    <div class="help-row"><b>notes notes</b><span>open / close editing notes for this script</span></div>
     <div class="help-sec">Voice — say it once</div>
     <div class="help-row"><b>script 7</b><span>jump to script 7 (any number)</span></div>
     <div class="help-sec">Touch</div>
@@ -1055,8 +964,7 @@
   ];
   SCRIPTS.push(...COUNTRY_QUIZ_SCRIPTS);
 
-  const GLOBAL_NOTES = ["⚡ HOOK ≤ 1.5s — ✂️ cut all dead air; 🚫 no greeting before the first spoken word.","💬 CAPTIONS: burn in (CapCut). 🖼️ phrase overlays stay up long enough to read ✕2.","📸 COVER FRAME = mid-expression face + the script's cover text. 📍 same placement every video.","🎨 AI B-ROLL: full-screen stills, 0.6–1s, hard cuts. CapCut = slow 5–8% zoom-in + soft pop on each cut (NO pop on a punchline shot). 🚫 never in the first ~2s, never over Arabic, never on the your-turn beat. Paste-ready prompts per script: `broll/prompts.md`"];
-  const VERSION = "v260916.b4-country-quizzes";
+  const VERSION = "v260919.b4-prompter-controls";
 
   const $ = (id) => document.getElementById(id);
   const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
@@ -1064,9 +972,10 @@
         remain = $("remain"), progress = $("progress");
 
   // ---------- state ----------
-  let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false, done: {}, focusPos: 30, takeCount: 1 };
+  let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false, done: {}, focusPos: 30, takeCount: 1, autoNext: false };
   try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
   st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
+  st.autoNext = !!st.autoNext;
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
   const save = () => { try { localStorage.setItem("awm-prompter", JSON.stringify(st)); } catch {} };
 
@@ -1165,12 +1074,25 @@
   }
 
   function finishTake() {
+    const currentIdx = st.idx;
     pause();
-    const s = SCRIPTS[st.idx];
+    const s = SCRIPTS[currentIdx];
     const slate = lines.querySelector(".end-slate");
     if (slate)
       slate.textContent = "— end · take " + fmtSec(takeMs) +
         (s.dur ? " · target " + s.dur : "") + " —";
+    if (st.autoNext && currentIdx < SCRIPTS.length - 1) {
+      setTimeout(() => {
+        if (!st.autoNext || st.idx !== currentIdx) return;
+        st.idx = currentIdx + 1;
+        save();
+        takeMs = 0;
+        render();
+        play(true);
+      }, 350);
+    } else if (st.autoNext) {
+      banner("ok", "Auto-next reached the final script ✓", 3000);
+    }
   }
 
   async function grabWakeLock() {
@@ -1320,26 +1242,10 @@
     else if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > SWIPE_THRESHOLD) {
       if (deltaY < 0) {
         // Swipe up - increase speed
-        const speeds = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
-        const currentIdx = speeds.indexOf(st.mult);
-        if (currentIdx < speeds.length - 1) {
-          st.mult = speeds[currentIdx + 1];
-          save();
-          document.querySelectorAll(".chip").forEach((c) =>
-            c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
-          beep(784);
-        }
+          if (st.mult < 1) { setSpeed(st.mult + 0.1); beep(784); }
       } else {
         // Swipe down - decrease speed
-        const speeds = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
-        const currentIdx = speeds.indexOf(st.mult);
-        if (currentIdx > 0) {
-          st.mult = speeds[currentIdx - 1];
-          save();
-          document.querySelectorAll(".chip").forEach((c) =>
-            c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
-          beep(392);
-        }
+        if (st.mult > 0.5) { setSpeed(st.mult - 0.1); beep(392); }
       }
     }
   }, { passive: true });
@@ -1390,13 +1296,15 @@
   $("playBtn").addEventListener("click", toggle);
   $("restartBtn").addEventListener("click", resetTop);
 
-  document.querySelectorAll(".chip").forEach((ch) =>
-    ch.addEventListener("click", () => {
-      st.mult = parseFloat(ch.dataset.m); save();
-      document.querySelectorAll(".chip").forEach((c) =>
-        c.setAttribute("aria-pressed", c === ch ? "true" : "false"));
-    })
-  );
+  const speedLabel = () => st.mult === 1 ? "1×" : st.mult.toFixed(1) + "×";
+  const setSpeed = (v) => {
+    st.mult = Math.min(1, Math.max(0.5, Math.round(v * 10) / 10));
+    save();
+    $("speedValue").textContent = speedLabel();
+    paint();
+  };
+  $("speedDown").addEventListener("click", () => setSpeed(st.mult - 0.1));
+  $("speedUp").addEventListener("click", () => setSpeed(st.mult + 0.1));
 
   const setFont = (v) => {
     st.font = Math.min(64, Math.max(26, v)); save();
@@ -1407,18 +1315,14 @@
   $("fontUp").addEventListener("click", () => setFont(st.font + 3));
   $("fontDown").addEventListener("click", () => setFont(st.font - 3));
 
-  const setFocus = (v) => {
-    st.focusPos = Math.min(70, Math.max(10, v)); save();
-    document.documentElement.style.setProperty("--focus-y", st.focusPos);
-    paint();
-  };
-  $("focusUp").addEventListener("click", () => setFocus(st.focusPos + 5));
-  $("focusDown").addEventListener("click", () => setFocus(st.focusPos - 5));
-
   // Initialize focus position from saved state
   if (st.focusPos) {
     document.documentElement.style.setProperty("--focus-y", st.focusPos);
   }
+
+  const autoNextToggle = $("autoNextToggle");
+  const applyAutoNext = () => { autoNextToggle.checked = !!st.autoNext; };
+  autoNextToggle.addEventListener("change", () => { st.autoNext = autoNextToggle.checked; save(); applyAutoNext(); });
 
   // Celebration confetti effect
   function celebrate() {
@@ -1670,39 +1574,12 @@
   $("helpBtn").addEventListener("click", () => help.classList.add("open"));
   $("closeHelp").addEventListener("click", () => help.classList.remove("open"));
 
-  // ---------- editing-notes modal ----------
-  const notesModal = $("notes");
-  function renderNotes() {
-    const s = SCRIPTS[st.idx];
-    $("notesFor").textContent = " · " + s.n + " — " + s.title;
-    const body = $("notesBody");
-    let html = "";
-    const scriptNotes = s.notes || [];
-    if (scriptNotes.length) {
-      html += `<div class="notes-sec">This script</div>`;
-      for (const n of scriptNotes) html += `<div class="note-item" dir="ltr">${n}</div>`;
-    } else {
-      html += `<div id="notesEmpty">No script-specific editing notes.</div>`;
-    }
-    if (GLOBAL_NOTES.length) {
-      html += `<div class="notes-sec">Every video</div>`;
-      for (const n of GLOBAL_NOTES) html += `<div class="note-item global" dir="ltr">${n}</div>`;
-    }
-    body.innerHTML = html;
-    body.scrollTop = 0;
-  }
-  function openNotes() { pause(); renderNotes(); notesModal.classList.add("open"); }
-  function closeNotes() { notesModal.classList.remove("open"); }
-  $("notesBtn").addEventListener("click", () => notesModal.classList.contains("open") ? closeNotes() : openNotes());
-  $("closeNotes").addEventListener("click", closeNotes);
-  notesModal.addEventListener("click", (e) => { if (e.target === notesModal) closeNotes(); });
-
-  const notesBtn = $("notesToggle");
+  const notesToggle = $("notesToggle");
   const applyNotes = () => {
     document.body.classList.toggle("no-notes", !st.notes);
-    notesBtn.setAttribute("aria-pressed", String(st.notes));
+    notesToggle.setAttribute("aria-pressed", String(st.notes));
   };
-  notesBtn.addEventListener("click", () => { st.notes = !st.notes; save(); applyNotes(); updateMetrics(); paint(); });
+  notesToggle.addEventListener("click", () => { st.notes = !st.notes; save(); applyNotes(); updateMetrics(); paint(); });
 
   // ---------- voice commands (say the word twice) ----------
   const flashEl = $("flash");
@@ -1737,8 +1614,6 @@
     back:   { hz: 523, icon: "🔄", run: retake },
     next:   { hz: 659, icon: "➡️", run: nextScript },
     reset:  { hz: 523, icon: "⏮️", run: resetTop },
-    // doubled like the rest so a spoken "notes" in a script can't trigger it
-    notes:  { hz: 880, icon: "📝", run: () => notesModal.classList.contains("open") ? closeNotes() : openNotes() },
   };
   // "script seven" / "script 7" jumps straight to that script; the recognizer
   // often mishears number words, so common homophones are accepted too
@@ -1748,14 +1623,14 @@
     eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
     sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
   };
-  const SCRIPT_RE = /\bscripts?\s+(\d{1,2}|twenty\s+[a-z]+|[a-z]+)\b/;
+  const SCRIPT_RE = /^scripts?\s+(\d{1,2}|twenty\s+[a-z]+|[a-z]+)$/;
 
   const lastCmd = {};
   const heardEl = $("heard");
   let heardTimer = 0;
-  function handleSpeech(txt) {
+  function handleSpeech(txt, isFinal = true) {
     document.body.classList.add("processing");
-    txt = txt.toLowerCase();
+    txt = txt.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
     if (txt.trim()) {
       heardEl.textContent = "“…" + txt.trim().slice(-48) + "”";
       clearTimeout(heardTimer);
@@ -1766,6 +1641,7 @@
     } else {
       setTimeout(() => document.body.classList.remove("processing"), 500);
     }
+    if (!isFinal) return;
     const sm = txt.match(SCRIPT_RE);
     if (sm && Date.now() - (lastCmd.script || 0) > 2500) {
       let n;
@@ -1782,7 +1658,7 @@
     }
     for (const w in VOICE_CMDS) {
       // the word twice in a row (only punctuation/spaces between) = a command
-      if (!new RegExp("\\b" + w + "\\b[^a-z]{0,8}\\b" + w + "\\b").test(txt)) continue;
+      if (txt !== w + " " + w) continue;
       if (Date.now() - (lastCmd[w] || 0) < 2500) continue;
       lastCmd[w] = Date.now();
       const c = VOICE_CMDS[w];
@@ -1877,14 +1753,14 @@
         numVocab.push(i <= 9 ? units[i - 1] : i <= 19 ? teens[i - 10] : i === 20 ? "twenty" : "twenty " + units[i - 21]);
       }
       const grammar = JSON.stringify([
-        "action", "cut", "back", "next", "reset", "script", "notes",
+        "action", "cut", "back", "next", "reset", "script",
         ...numVocab, "[unk]",
       ]);
       let kald;
       try { kald = new model.KaldiRecognizer(voskCtx.sampleRate, grammar); }
       catch { kald = new model.KaldiRecognizer(voskCtx.sampleRate); }
-      kald.on("result", (m) => { if (voiceOn && m.result) handleSpeech(m.result.text || ""); });
-      kald.on("partialresult", (m) => { if (voiceOn && m.result) handleSpeech(m.result.partial || ""); });
+      kald.on("result", (m) => { if (voiceOn && m.result) handleSpeech(m.result.text || "", true); });
+      kald.on("partialresult", (m) => { if (voiceOn && m.result) handleSpeech(m.result.partial || "", false); });
       const src = voskCtx.createMediaStreamSource(stream);
       const proc = voskCtx.createScriptProcessor(4096, 1, 1);
       src.connect(proc);
@@ -1932,10 +1808,8 @@
     rec.lang = "en-US";
     if (localMode) try { rec.processLocally = true; } catch {}
     rec.onresult = (e) => {
-      let txt = "";
       for (let i = e.resultIndex; i < e.results.length; i++)
-        txt += " " + e.results[i][0].transcript;
-      handleSpeech(txt);
+        handleSpeech(e.results[i][0].transcript, e.results[i].isFinal);
     };
     rec.onend = () => {
       rec = null;
@@ -1987,11 +1861,9 @@
     if (e.key === "Escape") {
       picker.classList.remove("open");
       help.classList.remove("open");
-      closeNotes();
       return;
     }
-    if (picker.classList.contains("open") || help.classList.contains("open") ||
-        notesModal.classList.contains("open")) return;
+    if (picker.classList.contains("open") || help.classList.contains("open")) return;
     const onButton = e.target instanceof Element && e.target.closest("button");
     if ([" ", "Enter"].includes(e.key) && onButton) return; // native click handles it
     if ([" ", "Enter", "PageDown", "ArrowRight"].includes(e.key)) {
@@ -2007,8 +1879,8 @@
 
   // ---------- boot ----------
   document.documentElement.style.setProperty("--font", st.font + "px");
-  document.querySelectorAll(".chip").forEach((c) =>
-    c.setAttribute("aria-pressed", String(parseFloat(c.dataset.m) === st.mult)));
+  $("speedValue").textContent = speedLabel();
+  applyAutoNext();
   applyNotes();
   render();
   $("takeCount").textContent = st.takeCount || 1;
