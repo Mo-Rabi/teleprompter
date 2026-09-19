@@ -892,7 +892,7 @@
       <button id="fontDown" class="sml" aria-label="Smaller text">A−</button>
       <button id="fontUp" class="big" aria-label="Bigger text">A+</button>
     </span>
-    <label class="auto-next"><input id="autoNextToggle" type="checkbox"> <span>Something I want to try</span></label>
+    <label class="auto-next" title="Automatically start the next script when this one ends"><input id="autoNextToggle" type="checkbox" aria-label="Continuous mode"> <span>Continuous mode</span></label>
   </div>
   
   <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
@@ -977,6 +977,7 @@
   st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
   st.autoNext = !!st.autoNext;
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
+  st.mult = Math.min(1.5, Math.max(0.3, Number(st.mult) || 0.9));
   const save = () => { try { localStorage.setItem("awm-prompter", JSON.stringify(st)); } catch {} };
 
   // persistent status banner — stays until tapped (or auto-hides if autoHideMs is set)
@@ -1242,10 +1243,10 @@
     else if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > SWIPE_THRESHOLD) {
       if (deltaY < 0) {
         // Swipe up - increase speed
-          if (st.mult < 1) { setSpeed(st.mult + 0.1); beep(784); }
+          if (st.mult < 1.5) { setSpeed(st.mult + 0.1); beep(784); }
       } else {
         // Swipe down - decrease speed
-        if (st.mult > 0.5) { setSpeed(st.mult - 0.1); beep(392); }
+        if (st.mult > 0.3) { setSpeed(st.mult - 0.1); beep(392); }
       }
     }
   }, { passive: true });
@@ -1298,7 +1299,7 @@
 
   const speedLabel = () => st.mult === 1 ? "1×" : st.mult.toFixed(1) + "×";
   const setSpeed = (v) => {
-    st.mult = Math.min(1, Math.max(0.5, Math.round(v * 10) / 10));
+    st.mult = Math.min(1.5, Math.max(0.3, Math.round(v * 10) / 10));
     save();
     $("speedValue").textContent = speedLabel();
     paint();
