@@ -362,6 +362,58 @@
     to   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
   }
 
+
+  /* ---------- camera preview and recording ---------- */
+  #cameraBackdrop { display:none; position:fixed; inset:0; z-index:0; overflow:hidden; background:#0b0c0e; }
+  body.camera-mode #cameraBackdrop { display:block; }
+  #cameraPreview { width:100%; height:100%; object-fit:cover; background:#0b0c0e; }
+  #cameraPreview.front-facing { transform:scaleX(-1); } /* recording itself is never mirrored */
+  #cameraTint { position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.14) 30%,rgba(0,0,0,.25) 80%,rgba(0,0,0,.65)); pointer-events:none; }
+  body.camera-mode #scroll { z-index:1; }
+  body.camera-mode .say { padding:6px 10px; border-radius:12px; background:rgba(0,0,0,.34); text-shadow:0 2px 9px #000, 0 0 22px #000; }
+  body.camera-mode .note, body.camera-mode .script-head { text-shadow:0 2px 9px #000; }
+  body.camera-mode #status, body.camera-mode #filmingStats, body.camera-mode #micLive { display:none !important; }
+  #cameraModeBtn[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); background:rgba(255,140,66,.15); }
+  #cameraToolbar {
+    position:fixed; top:calc(8px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); z-index:8;
+    display:none; width:max-content; max-width:calc(100vw - 16px); align-items:center; justify-content:center;
+    flex-wrap:wrap; gap:6px; padding:7px; border-radius:15px;
+    background:rgba(10,11,15,.86); border:1px solid rgba(255,255,255,.15); backdrop-filter:blur(12px);
+  }
+  body.camera-mode #cameraToolbar { display:flex; }
+  #cameraToolbar button { min-height:38px; padding:7px 11px; font-weight:650; font-size:13px; }
+  #cameraEnableBtn { color:var(--accent); }
+  #cameraRecordBtn { color:#ff8882; border-color:rgba(255,83,72,.5); }
+  #cameraRecordBtn.recording { background:#a32322; color:#fff; border-color:#e94d4b; }
+  #cameraRecordBtn:disabled, #cameraFlipBtn:disabled { opacity:.42; cursor:not-allowed; }
+  #cameraClock { color:#ff8c86; font-variant-numeric:tabular-nums; font-size:12px; font-weight:750; min-width:4ch; text-align:center; }
+  #cameraClock.recording::before { content:"● "; animation:pulse 1.2s infinite; }
+  #cameraInfo {
+    position:fixed; top:calc(68px + env(safe-area-inset-top)); left:12px; right:12px; z-index:7;
+    display:none; margin:0 auto; padding:6px 10px; width:fit-content; max-width:90vw; text-align:center;
+    color:#fff; font-size:12px; line-height:1.4; background:rgba(0,0,0,.65); border-radius:10px; pointer-events:none;
+  }
+  body.camera-mode #cameraInfo { display:block; }
+  #cameraResult {
+    position:fixed; inset:0; z-index:12; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; padding:18px; background:rgba(7,8,10,.98); color:#fff;
+  }
+  #cameraResult[hidden] { display:none !important; }
+  #cameraResult video { width:min(94vw,500px); max-height:60dvh; border-radius:12px; background:#000; }
+  .camera-result-actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+  .camera-result-actions a, .camera-result-actions button {
+    font:inherit; font-size:14px; padding:11px 16px; border-radius:10px;
+    border:1px solid var(--hairline); background:#1b1d24; color:#fff;
+    text-decoration:none; font-weight:650; cursor:pointer;
+  }
+  #cameraDownload { background:#22783e; border-color:#43a667; }
+  @media(max-width:500px) {
+    #cameraToolbar { gap:4px; padding:5px; }
+    #cameraToolbar button { padding:7px 8px; font-size:12px; min-height:36px; }
+    #cameraInfo { top:calc(106px + env(safe-area-inset-top)); }
+    body.camera-mode .say { padding:5px 8px; }
+  }
+
   /* ---------- control bar ---------- */
   #bar {
     position: fixed;
@@ -881,7 +933,30 @@
 <div class="focus-line"></div>
 <div id="count" aria-hidden="true"></div>
 
+<div id="cameraBackdrop" aria-hidden="true">
+  <video id="cameraPreview" autoplay muted playsinline></video>
+  <div id="cameraTint"></div>
+</div>
 <div id="scroll"><div id="lines"></div></div>
+
+<div id="cameraToolbar" role="toolbar" aria-label="Camera recording controls">
+  <button id="cameraEnableBtn" type="button">Start Camera</button>
+  <button id="cameraFlipBtn" type="button" disabled>Flip</button>
+  <button id="cameraRecordBtn" type="button" disabled>● Record</button>
+  <span id="cameraClock">0:00</span>
+  <button id="cameraReviewBtn" type="button" hidden>Last clip</button>
+  <button id="cameraExitBtn" type="button">Exit</button>
+</div>
+<div id="cameraInfo" role="status">Camera preview is off · Tap Start Camera. Text won't appear in the recording.</div>
+<div id="cameraResult" hidden role="dialog" aria-label="Recorded clip">
+  <strong>Your recording is ready</strong>
+  <video id="cameraPlayback" playsinline controls></video>
+  <div class="camera-result-actions">
+    <a id="cameraDownload" href="#" download>Save video</a>
+    <button id="cameraBackBtn" type="button">Back to camera</button>
+  </div>
+  <small>Save the video to your device before leaving this page.</small>
+</div>
 
 <div id="bar">
   <button id="scriptBtn" aria-haspopup="dialog">
@@ -912,13 +987,14 @@
   <button id="micBtn" class="icon-btn" aria-label="Voice commands" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
+  <button id="cameraModeBtn" class="icon-btn" aria-pressed="false" aria-label="Open Camera Mode" title="Camera Mode">📷</button>
   <button id="helpBtn" class="icon-btn help-q" aria-label="Show commands">?</button>
-  <span class="ver">v260919.b4-prompter-controls</span>
+  <span class="ver">v261116.camera-mode-v1</span>
 </div>
 
 <div id="help" role="dialog" aria-label="Commands">
   <header>
-    <span class="h">Commands · v260919.b4-prompter-controls</span>
+    <span class="h">Commands · v261116.camera-mode-v1</span>
     <button id="closeHelp">Close</button>
   </header>
   <div class="help-body">
@@ -3276,9 +3352,11 @@
 ];
   SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
 
-  const VERSION = "v261116.archive-completed-batches";
+  const VERSION = "v261116.camera-mode-v1";
   // Linkable page at ?view=archive without duplicating all 111 script definitions.
-  const archiveMode = new URLSearchParams(window.location.search).get("view") === "archive";
+  const requestedView = new URLSearchParams(window.location.search).get("view");
+  const archiveMode = requestedView === "archive";
+  const cameraLinkMode = requestedView === "camera";
 
   const $ = (id) => document.getElementById(id);
   const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
@@ -4277,6 +4355,234 @@
     if (voiceOn && !rec) startRec();
   });
 
+
+  // ---------- Camera Mode ----------
+  // MediaRecorder records the raw camera/audio stream. The prompter stays on
+  // screen for the presenter but is NOT burned into the recorded video.
+  const camButton=$("cameraModeBtn"), camEnable=$("cameraEnableBtn"),
+    camFlip=$("cameraFlipBtn"), camRecord=$("cameraRecordBtn"),
+    camReview=$("cameraReviewBtn"), camExit=$("cameraExitBtn"),
+    camInfo=$("cameraInfo"), camClock=$("cameraClock"),
+    camVideo=$("cameraPreview"), camResult=$("cameraResult"),
+    camPlayback=$("cameraPlayback"), camDownload=$("cameraDownload");
+  let cameraMode=false, camFacing=st.cameraFacing==="environment"?"environment":"user",
+    camStream=null, camRequest=0, camBusy=false, camRecorder=null, camParts=[],
+    camTick=null, camStartTime=0, camClip=null, camClipSaved=true, camStopping=false;
+  const camStatus=(s)=>{camInfo.textContent=s;};
+  const camRecording=()=>camRecorder&&camRecorder.state!=="inactive";
+  const camTime=(seconds)=>Math.floor(seconds/60)+":"+String(Math.floor(seconds%60)).padStart(2,"0");
+  function updateCamUI(){
+    const live=!!camStream&&camStream.getVideoTracks().some(t=>t.readyState==="live");
+    camEnable.hidden=live;
+    camEnable.disabled=camBusy;
+    camFlip.disabled=!live||camBusy||!!camRecording()||camStopping;
+    camRecord.disabled=!live||camBusy||!window.MediaRecorder||camStopping;
+    camRecord.classList.toggle("recording",!!camRecording());
+    camRecord.textContent=camRecording()?"■ Stop":"● Record";
+    camReview.hidden=!camClip;
+    camVideo.classList.toggle("front-facing",camFacing==="user");
+  }
+  function stopCamStream(){
+    if(camStream)camStream.getTracks().forEach(t=>t.stop());
+    camStream=null;
+    camVideo.srcObject=null;
+    updateCamUI();
+  }
+  async function startCam(){
+    if(!cameraMode||camBusy||camRecording())return;
+    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){
+      camStatus("Camera requires HTTPS and a compatible browser.");
+      return;
+    }
+    const request=++camRequest;
+    camBusy=true;
+    stopCamStream();
+    camStatus("Requesting camera and microphone permission…");
+    updateCamUI();
+    const video={facingMode:{ideal:camFacing},width:{ideal:1080},height:{ideal:1920},frameRate:{ideal:30}};
+    let stream=null,hasAudio=true;
+    try{
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({
+          video,audio:{echoCancellation:true,noiseSuppression:true}
+        });
+      }catch(err){
+        stream=await navigator.mediaDevices.getUserMedia({video,audio:false});
+        hasAudio=false;
+      }
+      if(!cameraMode||request!==camRequest){
+        stream.getTracks().forEach(t=>t.stop());
+        return;
+      }
+      camStream=stream;
+      camVideo.srcObject=stream;
+      try{await camVideo.play();}catch(err){}
+      camStatus(hasAudio?
+        "Camera ready · Prompt text will NOT be recorded.":
+        "Camera ready WITHOUT audio. Allow microphone access for sound.");
+      for(const track of stream.getVideoTracks()){
+        track.addEventListener("ended",()=>{
+          if(camStream===stream){
+            camStatus("Camera disconnected. Tap Start Camera to retry.");
+            stopCamStream();
+          }
+        });
+      }
+    }catch(err){
+      if(request===camRequest)camStatus("Camera unavailable. Check permissions or close other camera apps, then retry.");
+    }finally{
+      if(request===camRequest){camBusy=false;updateCamUI();}
+    }
+  }
+  function discardCamClip(){
+    camResult.hidden=true;
+    camPlayback.pause();
+    camPlayback.removeAttribute("src");
+    camPlayback.load();
+    if(camClip)URL.revokeObjectURL(camClip);
+    camClip=null;
+    camClipSaved=true;
+    updateCamUI();
+  }
+  function supportedCamMime(){
+    if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return "";
+    return ["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4",
+      "video/webm;codecs=vp8,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+  }
+  function stopCamRecording(){
+    if(!camRecording()||camStopping)return;
+    camStopping=true;
+    try{camRecorder.stop();}
+    catch(err){camStopping=false;camStatus("Could not stop recording. Please retry.");}
+    clearInterval(camTick);camTick=null;
+    pause();
+    updateCamUI();
+  }
+  function startCamRecording(){
+    if(!camStream||camBusy||camStopping||!window.MediaRecorder){
+      camStatus("Start Camera first. This browser must support video recording.");
+      return;
+    }
+    if(camClip&&!camClipSaved&&!confirm("Last recording was not saved. Discard it?"))return;
+    if(camClip)discardCamClip();
+    camParts=[];
+    const mime=supportedCamMime();
+    try{
+      try{camRecorder=new MediaRecorder(camStream,mime?{mimeType:mime}:undefined);}
+      catch(err){camRecorder=new MediaRecorder(camStream);}
+      const recorder=camRecorder;
+      recorder.ondataavailable=(event)=>{if(event.data?.size>0)camParts.push(event.data);};
+      recorder.onerror=()=>camStatus("Recording error. Check your browser's camera support.");
+      recorder.onstop=()=>{
+        camStopping=false;
+        clearInterval(camTick);camTick=null;
+        camClock.classList.remove("recording");
+        const fileMime=recorder.mimeType||mime||"video/webm";
+        const blob=new Blob(camParts,{type:fileMime});
+        camParts=[];
+        if(!blob.size){
+          camStatus("No footage was captured. Please retry.");
+          updateCamUI();
+          return;
+        }
+        camClip=URL.createObjectURL(blob);
+        camClipSaved=false;
+        camPlayback.src=camClip;
+        camDownload.href=camClip;
+        const ext=fileMime.includes("mp4")?"mp4":"webm";
+        const date=new Date().toISOString().replace(/[:.]/g,"-");
+        camDownload.download="ArabicWithMo_Script_"+SCRIPTS[st.idx].n+"_"+date+"."+ext;
+        camResult.hidden=false;
+        camStatus("Recording ready · Save the video before leaving.");
+        updateCamUI();
+      };
+      recorder.start(1000);
+      camStartTime=Date.now();
+      camTick=setInterval(()=>{
+        camClock.textContent=camTime((Date.now()-camStartTime)/1000);
+      },250);
+      camClock.textContent="0:00";
+      camClock.classList.add("recording");
+      camStatus("Recording · Only camera video and microphone audio are saved.");
+      updateCamUI();
+    }catch(err){
+      camStopping=false;
+      clearInterval(camTick);
+      camClock.classList.remove("recording");
+      camStatus("Video recording unsupported. You can still use camera preview.");
+      updateCamUI();
+    }
+  }
+  function camURL(enabled){
+    const url=new URL(location.href);
+    if(enabled)url.searchParams.set("view","camera");
+    else url.searchParams.delete("view");
+    history.replaceState(null,"",url.pathname+url.search+url.hash);
+  }
+  function enterCam(openCamera=false){
+    if(archiveMode)return;
+    if(!cameraMode){
+      cameraMode=true;
+      pause();
+      // Speech recognition competes with the phone microphone on some devices.
+      if(voiceOn){
+        voiceOn=false;st.voice=false;
+        try{rec?.stop();}catch(err){}
+        rec=null;setVoiceUI();save();
+      }
+      document.body.classList.add("camera-mode");
+      camButton.setAttribute("aria-pressed","true");
+      camButton.setAttribute("aria-label","Exit Camera Mode");
+      micBtn.disabled=true;
+      camURL(true);
+      camStatus("Tap Start Camera to enable preview. Text is never recorded.");
+      updateCamUI();updateMetrics();paint();
+    }
+    if(openCamera)startCam();
+  }
+  function exitCam(){
+    if(camRecording()||camStopping){
+      stopCamRecording();
+      camStatus("Save your recording before leaving Camera Mode.");
+      return;
+    }
+    if(camClip&&!camClipSaved&&!confirm("Recording not saved. Exit and discard it?"))return;
+    ++camRequest;camBusy=false;
+    stopCamStream();
+    if(camClip)discardCamClip();
+    cameraMode=false;
+    document.body.classList.remove("camera-mode");
+    camButton.setAttribute("aria-pressed","false");
+    camButton.setAttribute("aria-label","Open Camera Mode");
+    micBtn.disabled=!SR;
+    camClock.classList.remove("recording");
+    camClock.textContent="0:00";
+    camURL(false);updateMetrics();paint();
+  }
+  camButton.addEventListener("click",()=>cameraMode?exitCam():enterCam(true));
+  camEnable.addEventListener("click",startCam);
+  camExit.addEventListener("click",exitCam);
+  camFlip.addEventListener("click",()=>{
+    if(camRecording()||camBusy)return;
+    camFacing=camFacing==="user"?"environment":"user";
+    st.cameraFacing=camFacing;save();startCam();
+  });
+  camRecord.addEventListener("click",()=>camRecording()?stopCamRecording():startCamRecording());
+  camDownload.addEventListener("click",()=>{camClipSaved=true;});
+  $("cameraBackBtn").addEventListener("click",()=>{camResult.hidden=true;camPlayback.pause();});
+  camReview.addEventListener("click",()=>{if(camClip)camResult.hidden=false;});
+  window.addEventListener("beforeunload",(e)=>{
+    if(!camRecording()&&(camClipSaved||!camClip))return;
+    e.preventDefault();e.returnValue="";
+  });
+  document.addEventListener("visibilitychange",()=>{
+    if(!document.hidden||!cameraMode)return;
+    if(camRecording())stopCamRecording();
+    else if(camStream){
+      stopCamStream();camStatus("Camera paused in background. Tap Start Camera to resume.");
+    }
+  });
+
   // ---------- keyboard & bluetooth clicker ----------
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -4306,6 +4612,7 @@
   applyNotes();
   render();
   $("takeCount").textContent = st.takeCount || 1;
+  if(cameraLinkMode&&!archiveMode)enterCam(false);
   if (archiveMode) {
     document.title = "Archive · Mo's Teleprompter";
     document.body.classList.add("archive-page");
@@ -4323,7 +4630,7 @@
     st.lastVer = VERSION; save();
     banner("ok", "Updated to " + VERSION + " ✓", 3000);
   }
-  if (!archiveMode && st.voice && SR) { voiceOn = true; setVoiceUI(); initVoiceEngines(); startRec(); }
+  if (!archiveMode && !cameraMode && st.voice && SR) { voiceOn = true; setVoiceUI(); initVoiceEngines(); startRec(); }
 })();
 </script>
 
