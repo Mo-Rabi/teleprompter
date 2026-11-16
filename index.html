@@ -369,9 +369,74 @@
   #cameraPreview { width:100%; height:100%; object-fit:cover; background:#0b0c0e; }
   #cameraPreview.front-facing { transform:scaleX(-1); } /* recording itself is never mirrored */
   #cameraTint { position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.14) 30%,rgba(0,0,0,.25) 80%,rgba(0,0,0,.65)); pointer-events:none; }
-  body.camera-mode #scroll { z-index:1; }
-  body.camera-mode .say { padding:6px 10px; border-radius:12px; background:rgba(0,0,0,.34); text-shadow:0 2px 9px #000, 0 0 22px #000; }
-  body.camera-mode .note, body.camera-mode .script-head { text-shadow:0 2px 9px #000; }
+  /* The usual full-screen scroller is unchanged; only Camera Mode wraps it
+     inside a draggable, resizable floating PIP near the lens. */
+  #cameraPromptPanel { display:contents; }
+  #cameraPromptBar, #cameraPromptResize { display:none; }
+  body.camera-mode #cameraPromptPanel {
+    display:flex; flex-direction:column; position:fixed; z-index:3;
+    top:34dvh; left:50%; width:82vw; height:35dvh;
+    transform:translate(-50%,-50%);
+    border:1px solid rgba(255,255,255,.28); border-radius:17px;
+    overflow:hidden;
+    background:rgba(9,11,15,.76);
+    box-shadow:0 8px 28px rgba(0,0,0,.5);
+    backdrop-filter:blur(3px);
+  }
+  body.camera-mode #cameraPromptBar {
+    display:flex; flex:0 0 auto; align-items:center; gap:5px;
+    min-height:40px; padding:4px 6px;
+    border-bottom:1px solid rgba(255,255,255,.15);
+    background:rgba(8,9,13,.92);
+  }
+  #cameraPromptBar button {
+    flex:0 0 auto; min-width:34px; min-height:30px; padding:3px 7px;
+    font-size:12px; font-weight:650; color:#f9fafb; border-color:rgba(255,255,255,.15);
+  }
+  #cameraPromptMove {
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    cursor:grab; color:#ffb347 !important; border:1px dashed rgba(255,179,71,.55) !important;
+    background:rgba(255,140,66,.10);
+  }
+  #cameraPromptMove:active { cursor:grabbing; }
+  #cameraPromptTitle {
+    flex:1 1 auto; min-width:0; text-align:center; font-size:11px;
+    color:rgba(255,255,255,.75); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  body.camera-mode #scroll {
+    position:relative; inset:auto; z-index:auto; width:100%;
+    height:0; flex:1 1 auto; overflow-y:auto;
+  }
+  body.camera-mode #lines {
+    width:100%; max-width:none;
+    padding:var(--camera-pip-pad-top,64px) 12px var(--camera-pip-pad-bottom,120px);
+    text-align:center;
+  }
+  body.camera-mode .script-head { margin-bottom:1.1em; }
+  body.camera-mode .script-head h1 { font-size:16px; line-height:1.15; }
+  body.camera-mode .script-head .eyebrow { font-size:10px; }
+  body.camera-mode .say {
+    font-size:var(--camera-pip-font,27px);
+    padding:2px 3px; margin-bottom:.8em;
+    border-radius:5px; background:transparent;
+    text-shadow:0 2px 6px #000, 0 0 16px rgba(0,0,0,.9);
+  }
+  body.camera-mode .note {
+    font-size:calc(var(--camera-pip-font,27px) * .52);
+    margin-bottom:1.1em; text-shadow:0 2px 8px #000;
+  }
+  body.camera-mode #cameraPromptResize {
+    display:flex; justify-content:center; align-items:center;
+    position:absolute; bottom:0; right:0; z-index:4;
+    width:32px; height:32px; padding:0; line-height:1; font-size:20px;
+    background:rgba(9,11,15,.92); color:#ffb347;
+    border-radius:10px 0 13px 0;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    cursor:nwse-resize;
+  }
+  body.camera-mode #cameraPromptPanel .say.active { opacity:1; }
+  body.camera-mode .focus-line, body.camera-mode .chev.l, body.camera-mode .chev.r,
+  body.camera-mode #progress { display:none; }
   body.camera-mode #status, body.camera-mode #filmingStats, body.camera-mode #micLive { display:none !important; }
   #cameraModeBtn[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); background:rgba(255,140,66,.15); }
   #cameraToolbar {
@@ -944,7 +1009,16 @@
   <video id="cameraPreview" autoplay muted playsinline></video>
   <div id="cameraTint"></div>
 </div>
-<div id="scroll"><div id="lines"></div></div>
+<div id="cameraPromptPanel" aria-label="Movable camera teleprompter">
+  <div id="cameraPromptBar">
+    <button id="cameraPromptMove" type="button" aria-label="Drag script window to reposition" title="Drag script closer to your camera lens">⠿ Move script</button>
+    <span id="cameraPromptTitle" aria-hidden="true">Script</span>
+    <button id="cameraPromptSmaller" type="button" aria-label="Smaller camera prompt text" title="Smaller prompt text">A−</button>
+    <button id="cameraPromptLarger" type="button" aria-label="Larger camera prompt text" title="Larger prompt text">A+</button>
+  </div>
+  <div id="scroll"><div id="lines"></div></div>
+  <button id="cameraPromptResize" type="button" aria-label="Drag to resize script window" title="Drag to resize script window">◢</button>
+</div>
 
 <div id="cameraToolbar" role="toolbar" aria-label="Camera recording controls">
   <button id="cameraDragHandle" type="button" aria-label="Drag camera controls to reposition" title="Hold and drag to move controls">⠿ Move</button>
@@ -997,12 +1071,12 @@
   </button>
   <button id="cameraModeBtn" class="icon-btn" aria-pressed="false" aria-label="Open Camera Mode" title="Camera Mode">📷</button>
   <button id="helpBtn" class="icon-btn help-q" aria-label="Show commands">?</button>
-  <span class="ver">v261116.camera-portrait-hd-draggable</span>
+  <span class="ver">v261116.camera-pip-prompt</span>
 </div>
 
 <div id="help" role="dialog" aria-label="Commands">
   <header>
-    <span class="h">Commands · v261116.camera-portrait-hd-draggable</span>
+    <span class="h">Commands · v261116.camera-pip-prompt</span>
     <button id="closeHelp">Close</button>
   </header>
   <div class="help-body">
@@ -3360,7 +3434,7 @@
 ];
   SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
 
-  const VERSION = "v261116.camera-portrait-hd-draggable";
+  const VERSION = "v261116.camera-pip-prompt";
   // Linkable page at ?view=archive without duplicating all 111 script definitions.
   const requestedView = new URLSearchParams(window.location.search).get("view");
   const archiveMode = requestedView === "archive";
@@ -3486,7 +3560,13 @@
     if (targetSec > 0 && max > 0) basePxPerSec = max / targetSec;
   }
   const pxPerSec = () => basePxPerSec * st.mult;
-  const focusY = () => innerHeight * 0.30;
+  const focusY = () => {
+    if (document.body.classList.contains("camera-mode")) {
+      const box = scroll.getBoundingClientRect();
+      return box.top + scroll.clientHeight * 0.34;
+    }
+    return innerHeight * 0.30;
+  };
   const fmtSec = (ms) => Math.round(ms / 1000) + "s";
   const fmtTime = (ms) => {
     const totalSec = Math.floor(ms / 1000);
@@ -3505,6 +3585,7 @@
     lines.innerHTML = html;
     $("scriptBtn").querySelector(".num").textContent = s.n;
     $("scriptBtn").querySelector(".ttl").textContent = s.title;
+    $("cameraPromptTitle").textContent = "#" + s.n;
     scroll.scrollTop = 0;
     takeMs = 0;
     updateMetrics();
@@ -4386,6 +4467,94 @@
   };
   const cameraOutput={width:1080,height:1920,fps:30,bitrate:12000000};
 
+  // Floating script PIP uses separate device-local position, size and font.
+  // Drag the header; resize from the bottom-right handle.
+  const pip = $("cameraPromptPanel"), pipMove = $("cameraPromptMove"),
+    pipResize = $("cameraPromptResize");
+  const pipDefaults = {x:0.5,y:0.34,w:0.82,h:0.35};
+  const pipLimits = () => ({
+    vw:window.innerWidth,vh:window.innerHeight,
+    minW:Math.min(210,window.innerWidth-12),
+    minH:Math.min(152,window.innerHeight-56),
+    maxW:Math.max(140,window.innerWidth-12),
+    maxH:Math.max(148,window.innerHeight-56)
+  });
+  function applyPipRect(cx,cy,width,height,commit=false){
+    const l=pipLimits();
+    const w=Math.min(Math.max(width,l.minW),l.maxW);
+    const ht=Math.min(Math.max(height,l.minH),l.maxH);
+    const x=Math.min(Math.max(cx,w/2+6),Math.max(w/2+6,l.vw-w/2-6));
+    const y=Math.min(Math.max(cy,ht/2+6),Math.max(ht/2+6,l.vh-ht/2-6));
+    pip.style.width=w+"px"; pip.style.height=ht+"px";
+    pip.style.left=x+"px"; pip.style.top=y+"px";
+    const headerHeight=$("cameraPromptBar").getBoundingClientRect().height||40;
+    const scrollHeight=Math.max(80,ht-headerHeight);
+    pip.style.setProperty("--camera-pip-pad-top",Math.round(scrollHeight*.30)+"px");
+    pip.style.setProperty("--camera-pip-pad-bottom",Math.round(scrollHeight*.66)+"px");
+    st.cameraPrompt={x:x/l.vw,y:y/l.vh,w:w/l.vw,h:ht/l.vh};
+    if(commit)save();
+    updateMetrics();
+    paint();
+  }
+  function restorePip(){
+    if(!cameraMode)return;
+    const p=st.cameraPrompt||pipDefaults;
+    const l=pipLimits();
+    pip.style.setProperty("--camera-pip-font",Math.max(16,Math.min(44,Number(st.cameraPromptFont)||27))+"px");
+    applyPipRect((Number(p.x)||pipDefaults.x)*l.vw,
+      (Number(p.y)||pipDefaults.y)*l.vh,
+      (Number(p.w)||pipDefaults.w)*l.vw,
+      (Number(p.h)||pipDefaults.h)*l.vh);
+  }
+  let pipGesture=null;
+  pipMove.addEventListener("pointerdown",(e)=>{
+    if(!cameraMode)return;
+    const r=pip.getBoundingClientRect();
+    pipGesture={kind:"move",id:e.pointerId,sx:e.clientX,sy:e.clientY,
+      x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height};
+    pipMove.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  pipResize.addEventListener("pointerdown",(e)=>{
+    if(!cameraMode)return;
+    const r=pip.getBoundingClientRect();
+    pipGesture={kind:"resize",id:e.pointerId,sx:e.clientX,sy:e.clientY,
+      left:r.left,top:r.top,w:r.width,h:r.height};
+    pipResize.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  function movePipPointer(e){
+    const g=pipGesture;
+    if(!g||g.id!==e.pointerId||!cameraMode)return;
+    e.preventDefault();
+    if(g.kind==="move"){
+      applyPipRect(g.x+e.clientX-g.sx,g.y+e.clientY-g.sy,g.w,g.h);
+    }else{
+      const l=pipLimits();
+      const w=Math.max(l.minW,Math.min(g.w+(e.clientX-g.sx),l.maxW,l.vw-g.left-6));
+      const ht=Math.max(l.minH,Math.min(g.h+(e.clientY-g.sy),l.maxH,l.vh-g.top-6));
+      applyPipRect(g.left+w/2,g.top+ht/2,w,ht);
+    }
+  }
+  pipMove.addEventListener("pointermove",movePipPointer);
+  pipResize.addEventListener("pointermove",movePipPointer);
+  function finishPipPointer(e){
+    if(!pipGesture||pipGesture.id!==e.pointerId)return;
+    pipGesture=null;save();
+  }
+  for(const grip of [pipMove,pipResize]){
+    grip.addEventListener("pointerup",finishPipPointer);
+    grip.addEventListener("pointercancel",finishPipPointer);
+    grip.addEventListener("lostpointercapture",finishPipPointer);
+  }
+  function changePipFont(delta){
+    st.cameraPromptFont=Math.min(44,Math.max(16,(Number(st.cameraPromptFont)||27)+delta));
+    pip.style.setProperty("--camera-pip-font",st.cameraPromptFont+"px");
+    save();updateMetrics();paint();
+  }
+  $("cameraPromptSmaller").addEventListener("click",()=>changePipFont(-2));
+  $("cameraPromptLarger").addEventListener("click",()=>changePipFont(2));
+
   // Keep toolbar position in the existing browser-local settings.
   // Normalized coordinates survive screen-size and orientation changes.
   function positionCamToolbar(){
@@ -4394,7 +4563,7 @@
     const rect=camToolbar.getBoundingClientRect();
     const minX=rect.width/2+6,maxX=w-rect.width/2-6;
     const minY=rect.height/2+6,maxY=h-rect.height/2-6;
-    const saved=st.cameraToolbar||{x:0.5,y:0.25};
+    const saved=st.cameraToolbar||{x:0.5,y:0.82};
     const rawX=Number.isFinite(saved.x)?saved.x*w:0.5*w;
     const rawY=Number.isFinite(saved.y)?saved.y*h:0.25*h;
     const x=Math.min(Math.max(rawX,minX),Math.max(minX,maxX));
@@ -4422,7 +4591,12 @@
   const endToolbarDrag=()=>{if(draggingCam){draggingCam=false;save();}};
   camGrip.addEventListener("pointerup",endToolbarDrag);
   camGrip.addEventListener("pointercancel",endToolbarDrag);
-  window.addEventListener("resize",()=>{if(cameraMode)positionCamToolbar();});
+  window.addEventListener("resize",()=>{
+    if(cameraMode){
+      restorePip();
+      positionCamToolbar();
+    }
+  });
   const camRecording=()=>camRecorder&&camRecorder.state!=="inactive";
   const camTime=(seconds)=>Math.floor(seconds/60)+":"+String(Math.floor(seconds%60)).padStart(2,"0");
   function updateCamUI(){
@@ -4656,8 +4830,11 @@
       micBtn.disabled=true;
       camURL(true);
       camStatus("Tap Start Camera to enable preview. Drag ⠿ Move to reposition controls.",4300);
-      updateCamUI();updateMetrics();paint();
-      requestAnimationFrame(positionCamToolbar);
+      updateCamUI();
+      requestAnimationFrame(()=>{
+        restorePip();
+        positionCamToolbar();
+      });
     }
     if(openCamera)startCam();
   }
