@@ -330,7 +330,7 @@ public class FloatingService extends Service {
     }
 
     @Override public void onDestroy() {
-        reportOverlayStatus(false,"Floating overlay stopped.");
+        if(root!=null && root.isAttachedToWindow()) reportOverlayStatus(false,"Floating overlay stopped.");
         pause();
         if(root!=null) {
             try { manager.removeView(root); } catch(Exception ignored) {}
