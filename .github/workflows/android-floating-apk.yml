@@ -25,9 +25,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install Android API 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      # GitHub's Ubuntu runners already contain an Android SDK; avoid the
+      # setup-android action that tries to fetch retired "tools" packages.
+      - name: Verify Android SDK and install API 35
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
