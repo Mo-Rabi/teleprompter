@@ -46,7 +46,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish permanently downloadable APK as GitHub prerelease
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/android-floating-teleprompter'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/feature/android-floating-teleprompter') || (github.event_name == 'pull_request' && github.head_ref == 'feature/android-floating-teleprompter' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
