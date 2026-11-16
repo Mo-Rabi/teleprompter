@@ -964,7 +964,753 @@
   ];
   SCRIPTS.push(...COUNTRY_QUIZ_SCRIPTS);
 
-  const VERSION = "v260919.b4-prompter-controls";
+  // November 2026 ArabicWithMo short-form batch: 37 scripts (IDs AL, QUIZ, WORD, ETY, APP, DIALECT).
+  // Keep these appended: older localStorage filming status is keyed by script number.
+  const NOVEMBER_2026_SCRIPTS = [
+  {
+    "n": 75,
+    "title": "Your First Four Arabic Letters",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you learn your first FOUR Arabic letters in 20 seconds?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-01A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Open holding a small bowl of dates; quickly reveal huge ب ت ث cards and move/add dots.",
+      "🎒 PROPS: Dates; letter cards; optional animal pictures",
+      "🔠 ON SCREEN: أَسَد | بَاب | تَمْر | ثَعْلَب; ب ت ث",
+      "📝 PRODUCTION: MSA. Technical distinction: the initial sound in أَسَد is hamza on an alif, while alif can mark a long vowel. Explain fully in long form."
+    ],
+    "sourceId": "AL-01A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 76,
+    "title": "Repeat the First Four Arabic Sounds",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Think you can pronounce your first four Arabic sounds?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-01B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Point at camera; each giant vowelled letter appears with a 2-second countdown.",
+      "🎒 PROPS: Letter cards optional",
+      "🔠 ON SCREEN: أَ | بَ | تَ | ثَ",
+      "📝 PRODUCTION: Use /ʔa/ for أَ, not an invented consonant sound for bare alif. Keep pauses genuine."
+    ],
+    "sourceId": "AL-01B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 77,
+    "title": "One Shape, Three Arabic Letters",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "These THREE Arabic letters look almost identical!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-02A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Start on ح; add a dot below to make ج, then above to make خ.",
+      "🎒 PROPS: Glass of milk, bread; camel image",
+      "🔠 ON SCREEN: جَمَل | حَلِيب | خُبْز; ج ح خ",
+      "📝 PRODUCTION: Say ج as standard MSA /dʒ/ for alphabet instruction; Egyptian G is a brief optional dialect note."
+    ],
+    "sourceId": "AL-02A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 78,
+    "title": "Repeat the Arabic Sounds ج ح خ",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "These are some of the trickiest Arabic sounds."
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-02B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Three oversized letter panels; show your mouth clearly.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: جَ | حَ | خَ",
+      "📝 PRODUCTION: MSA consonants in repeat drill. Avoid exaggerated throat effects."
+    ],
+    "sourceId": "AL-02B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 79,
+    "title": "Four Letters, Two Shapes",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "One tiny dot can change an Arabic letter!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-03A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Draw د ذ and ر ز as two pairs; add the dot live.",
+      "🎒 PROPS: Notebook, flower; optional pomegranate",
+      "🔠 ON SCREEN: دَفْتَر | ذَهَب | رُمَّان | زَهْرَة; د ذ | ر ز",
+      "📝 PRODUCTION: Do not teach rigid obtuse-angle or length rules: letter shapes vary by font and handwriting."
+    ],
+    "sourceId": "AL-03A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 80,
+    "title": "Repeat the Arabic Sounds د ذ ر ز",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Let's test your Arabic pronunciation!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-03B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Present دَ versus ذَ on two cards; then رَ versus زَ.",
+      "🎒 PROPS: Letter cards optional",
+      "🔠 ON SCREEN: دَ | ذَ | رَ | زَ",
+      "📝 PRODUCTION: Pronounce ذ /ð/ as in English “this,” not the /θ/ in “think.”"
+    ],
+    "sourceId": "AL-03B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 81,
+    "title": "Four Arabic S-Like Sounds",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Arabic has more than one S-like sound!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-04A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Start with a bar of soap; reveal س ش and ص ض in large text.",
+      "🎒 PROPS: Soap; fish and sun graphics",
+      "🔠 ON SCREEN: سَمَك | شَمْس | صَابُون | ضَرْب",
+      "📝 PRODUCTION: Use standard MSA ض. ضَرْب is a noun meaning hitting/striking, not the imperative “hit.”"
+    ],
+    "sourceId": "AL-04A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 82,
+    "title": "Repeat the Arabic Sounds س ش ص ض",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you hear the difference between these Arabic sounds?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-04B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Split-screen سَ versus صَ; highlight which sound you pronounce.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: سَ | شَ | صَ | ضَ",
+      "📝 PRODUCTION: Teach emphatic sounds without unnatural exaggeration."
+    ],
+    "sourceId": "AL-04B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 83,
+    "title": "Four Challenging Arabic Letters",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "These four Arabic letters might surprise your mouth!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-05A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Hold a plate and envelope; flash a huge ع at the hook.",
+      "🎒 PROPS: Plate, envelope; point at eye and room",
+      "🔠 ON SCREEN: طَبَق | ظَرْف | عَيْن | غُرْفَة",
+      "📝 PRODUCTION: MSA pronunciation. For ظ, do not substitute z as in many dialects."
+    ],
+    "sourceId": "AL-05A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 84,
+    "title": "Repeat the Arabic Sounds ط ظ ع غ",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Ready to challenge your Arabic pronunciation?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-05B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Start with a clean close-up of your face saying عَ; then giant letter overlays.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: طَ | ظَ | عَ | غَ",
+      "📝 PRODUCTION: Use natural MSA sound articulation."
+    ],
+    "sourceId": "AL-05B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 85,
+    "title": "Can You Hear Qāf vs Kāf?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Do Qāf and Kāf sound the same to you?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-06A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Show real pen and lemon, then huge ق versus ك on-screen.",
+      "🎒 PROPS: Pen, lemon, fruit, dog picture",
+      "🔠 ON SCREEN: فَاكِهَة | قَلَم | كَلْب | لَيْمُون; قَ / كَ",
+      "📝 PRODUCTION: Use standard MSA /q/ and /k/. Optional separate Shorts can explore Cairene or Levantine ق."
+    ],
+    "sourceId": "AL-06A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 86,
+    "title": "Repeat the Arabic Sounds ف ق ك ل",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "These two Arabic sounds aren't twins!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-06B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Show giant ق and ك on opposite sides.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: فَ | قَ | كَ | لَ; قَ / كَ",
+      "📝 PRODUCTION: Be consistent about MSA pronunciation."
+    ],
+    "sourceId": "AL-06B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 87,
+    "title": "The Final Five Arabic Letters",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Only FIVE letters left!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-07A | Alphabet — Listen & Learn",
+      "🎬 VISUAL HOOK: Hold banana and phone; show a 24/28 → 28/28 progress counter.",
+      "🎒 PROPS: Banana, phone, flower; safe fire illustration",
+      "🔠 ON SCREEN: مَوْز | نَار | هَاتِف | وَرْدَة | يَد",
+      "📝 PRODUCTION: Use fire graphic rather than actual flame."
+    ],
+    "sourceId": "AL-07A",
+    "series": "Alphabet — Listen & Learn"
+  },
+  {
+    "n": 88,
+    "title": "Repeat the Final Five Arabic Sounds",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "This is the FINAL Arabic alphabet challenge!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-07B | Alphabet — Repeat After Me",
+      "🎬 VISUAL HOOK: Five letters count up, then zoom out to show all 28.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: مَ | نَ | هَ | وَ | يَ",
+      "📝 PRODUCTION: Keep distinct names vs sounds: letter names in A, phonemes with fatḥa in B."
+    ],
+    "sourceId": "AL-07B",
+    "series": "Alphabet — Repeat After Me"
+  },
+  {
+    "n": 89,
+    "title": "All 28 Arabic Letter Names",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you keep up with ALL 28 Arabic letters?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-BONUS-NAMES | Alphabet — Bonus Listening",
+      "🎬 VISUAL HOOK: 28-letter grid; highlight each letter as you say its name.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: Arabic alphabet grid ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن هـ و ي",
+      "📝 PRODUCTION: This is letter NAMES, not sound-by-sound phonics. Pace the 28 names clearly."
+    ],
+    "sourceId": "AL-BONUS-NAMES",
+    "series": "Alphabet — Bonus Listening"
+  },
+  {
+    "n": 90,
+    "title": "All 28 Arabic Sounds with Fatḥa",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "You know the Arabic alphabet names..."
+      }
+    ],
+    "notes": [
+      "🧾 ID: AL-BONUS-SOUNDS | Alphabet — Bonus Listening",
+      "🎬 VISUAL HOOK: 28-letter grid highlights a vowelled letter every beat.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: أَ بَ تَ ثَ جَ حَ خَ دَ ذَ رَ زَ سَ شَ صَ ضَ طَ ظَ عَ غَ فَ قَ كَ لَ مَ نَ هَ وَ يَ",
+      "📝 PRODUCTION: MSA consonant-plus-fatḥa listening drill. Initial أَ is hamza on alif, not an independent /a/ consonant."
+    ],
+    "sourceId": "AL-BONUS-SOUNDS",
+    "series": "Alphabet — Bonus Listening"
+  },
+  {
+    "n": 91,
+    "title": "Can You Understand This Egyptian Sentence?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Quick Egyptian Arabic challenge!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-01 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Hold any price-tagged object up close with a giant question mark.",
+      "🎒 PROPS: Object with price tag",
+      "🔠 ON SCREEN: بِكَامْ دَه؟ — How much is this?",
+      "📝 PRODUCTION: Show A/B/C choices and reveal B after pause."
+    ],
+    "sourceId": "QUIZ-01",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 92,
+    "title": "Three Objects, Three Arabic Words",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you name these three objects in Arabic?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-02 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Hold three objects up together, then hide them behind your back.",
+      "🎒 PROPS: Book, pen, key",
+      "🔠 ON SCREEN: كِتَاب | قَلَم | مِفْتَاح",
+      "📝 PRODUCTION: Make second presentation a silent recall challenge."
+    ],
+    "sourceId": "QUIZ-02",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 93,
+    "title": "Guess the Country from Its Arabic Name",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you guess these countries from their Arabic names?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-03 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Show three flags hidden behind question marks.",
+      "🎒 PROPS: Flag overlays",
+      "🔠 ON SCREEN: الصِّين | الْيَابَان | الْمَغْرِب",
+      "📝 PRODUCTION: Let each country-name appear before its flag reveal."
+    ],
+    "sourceId": "QUIZ-03",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 94,
+    "title": "Can You Hear These Two Arabic Sounds?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can your ears tell these Arabic sounds apart?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-04 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Show oversized ح and خ and hide the answer while pronouncing.",
+      "🎒 PROPS: Letter cards optional",
+      "🔠 ON SCREEN: حَ / خَ",
+      "📝 PRODUCTION: Keep answers hidden until listeners have had time to choose."
+    ],
+    "sourceId": "QUIZ-04",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 95,
+    "title": "Da or Di?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Most Arabic beginners get THIS wrong!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-05 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Show a book and an apple on opposite sides of frame.",
+      "🎒 PROPS: Book, apple",
+      "🔠 ON SCREEN: دَه كِتَاب | دِي تُفَّاحَة",
+      "📝 PRODUCTION: Use natural Egyptian pronunciation; these are demonstratives."
+    ],
+    "sourceId": "QUIZ-05",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 96,
+    "title": "How Do You Answer Izayyak?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Someone in Egypt says:"
+      }
+    ],
+    "notes": [
+      "🧾 ID: QUIZ-06 | Interactive Quizzes",
+      "🎬 VISUAL HOOK: Point at camera as though the viewer is in a conversation.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: إِزَّيَّك؟ | أَنَا كُوَيِّس | أَنَا كُوَيِّسَة",
+      "📝 PRODUCTION: Use Egyptian pronunciation. Different endings for speaker gender."
+    ],
+    "sourceId": "QUIZ-06",
+    "series": "Interactive Quizzes"
+  },
+  {
+    "n": 97,
+    "title": "One Egyptian Word, Three Meanings",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "This ONE Egyptian word has three uses!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: WORD-01 | Useful Egyptian Words & Grammar",
+      "🎬 VISUAL HOOK: Switch among relieved, annoyed, and agreeable facial expressions.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: خَلَاص — Finished / Enough / Alright",
+      "📝 PRODUCTION: Match expressions to meanings; Egyptian Arabic."
+    ],
+    "sourceId": "WORD-01",
+    "series": "Useful Egyptian Words & Grammar"
+  },
+  {
+    "n": 98,
+    "title": "Does ماشي Mean Walking?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "You probably think مَاشِي means walking."
+      }
+    ],
+    "notes": [
+      "🧾 ID: WORD-02 | Useful Egyptian Words & Grammar",
+      "🎬 VISUAL HOOK: Walk across frame, stop, and give a thumbs-up on مَاشِي.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: مَاشِي — Walking / Okay; مَاشِي، نِتْقَابِل بُكْرَة — Okay, let’s meet tomorrow.",
+      "📝 PRODUCTION: USER REVISION: Prefer literal teaching translation “Okay, let’s meet tomorrow,” not “see you tomorrow.” This translation is pedagogically closer to نِتْقَابِل."
+    ],
+    "sourceId": "WORD-02",
+    "series": "Useful Egyptian Words & Grammar"
+  },
+  {
+    "n": 99,
+    "title": "Three Uses of بس",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Three uses of ONE tiny Egyptian word!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: WORD-03 | Useful Egyptian Words & Grammar",
+      "🎬 VISUAL HOOK: Hold up one finger, then give a stop gesture.",
+      "🎒 PROPS: One apple or pen",
+      "🔠 ON SCREEN: بَسّ — But / Only / Enough",
+      "📝 PRODUCTION: Egyptian use; keep gestures clear."
+    ],
+    "sourceId": "WORD-03",
+    "series": "Useful Egyptian Words & Grammar"
+  },
+  {
+    "n": 100,
+    "title": "عندي vs معايا",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "What's the difference between عِنْدِي and مَعَايَا?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: WORD-04 | Useful Egyptian Words & Grammar",
+      "🎬 VISUAL HOOK: Book rests on desk, then pick it up and hold it close.",
+      "🎒 PROPS: Book",
+      "🔠 ON SCREEN: عِنْدِي كِتَاب | الْكِتَاب مَعَايَا",
+      "📝 PRODUCTION: These meanings overlap in real usage; present as a beginner-friendly contrast, not an absolute rule."
+    ],
+    "sourceId": "WORD-04",
+    "series": "Useful Egyptian Words & Grammar"
+  },
+  {
+    "n": 101,
+    "title": "Three More Uses of لسه",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Remember the Egyptian word لِسَّه?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: WORD-05 | Useful Egyptian Words & Grammar",
+      "🎬 VISUAL HOOK: Sleepy expression → look at watch → show unfinished notebook task.",
+      "🎒 PROPS: Watch/phone, notebook",
+      "🔠 ON SCREEN: لِسَّه صَاحِي | لِسَّه مُسْتَنِّي | لِسَّه مَا خَلَّصْتِش",
+      "📝 PRODUCTION: Works as a sequel to earlier strong-performing لسه video."
+    ],
+    "sourceId": "WORD-05",
+    "series": "Useful Egyptian Words & Grammar"
+  },
+  {
+    "n": 102,
+    "title": "The Egyptian Word for Room Comes from Turkish",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Egyptians use this word every day:"
+      }
+    ],
+    "notes": [
+      "🧾 ID: ETY-01 | That’s Not Originally Arabic",
+      "🎬 VISUAL HOOK: Open a door and point inside.",
+      "🎒 PROPS: Room/door",
+      "🔠 ON SCREEN: أُوضَة — Room | Turkish: oda | MSA: غُرْفَة",
+      "📝 PRODUCTION: Verify spelling and provenance before publication if further research changes."
+    ],
+    "sourceId": "ETY-01",
+    "series": "That’s Not Originally Arabic"
+  },
+  {
+    "n": 103,
+    "title": "This Egyptian Elevator Word Is French",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Here's an Egyptian Arabic word borrowed from FRENCH!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: ETY-02 | That’s Not Originally Arabic",
+      "🎬 VISUAL HOOK: Pretend to press an elevator button.",
+      "🎒 PROPS: Elevator icon",
+      "🔠 ON SCREEN: أَسَانْسِير — Ascenseur — مِصْعَد",
+      "📝 PRODUCTION: Verify precise colloquial vocalization in the edit."
+    ],
+    "sourceId": "ETY-02",
+    "series": "That’s Not Originally Arabic"
+  },
+  {
+    "n": 104,
+    "title": "Egyptian Pastrami Has a Turkish Name",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "If you've eaten Egyptian breakfast, you might know this word!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: ETY-03 | That’s Not Originally Arabic",
+      "🎬 VISUAL HOOK: Show a packet/photo of pastrami and eggs.",
+      "🎒 PROPS: Pastrami packet or image",
+      "🔠 ON SCREEN: بَسْطَرْمَة — Turkish: Pastırma",
+      "📝 PRODUCTION: Keep precise claim modest: term comes through Turkish, even if broader etymology is more complex."
+    ],
+    "sourceId": "ETY-03",
+    "series": "That’s Not Originally Arabic"
+  },
+  {
+    "n": 105,
+    "title": "The Turkish Words Hidden in Shish Tawook",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "You've probably heard of SHISH TAWOOK!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: ETY-04 | That’s Not Originally Arabic",
+      "🎬 VISUAL HOOK: Hold a chicken skewer or food photo; animate Şiş + Tavuk joining.",
+      "🎒 PROPS: Chicken skewer/photo",
+      "🔠 ON SCREEN: شِيش طَاوُوق | Şiş = Skewer | Tavuk = Chicken",
+      "📝 PRODUCTION: Preserves the user-edited version of the original script 71415."
+    ],
+    "sourceId": "ETY-04",
+    "series": "That’s Not Originally Arabic"
+  },
+  {
+    "n": 106,
+    "title": "Can You Understand This Egyptian Conversation?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Can you understand spoken Egyptian Arabic?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: APP-01 | ArabicWithMo App — Demonstration",
+      "🎬 VISUAL HOOK: Play real native-speaker sentence within first second, with meaning concealed.",
+      "🎒 PROPS: Actual app screen recording or phone showing app",
+      "🔠 ON SCREEN: Can you understand this? → Tap a word → See meaning → Hear full sentence in context",
+      "📝 PRODUCTION: CRITICAL PRODUCT TRUTH: Tapping a word shows its meaning and replays the ENTIRE sentence spoken by a native speaker. There are NO separate word-level recordings. Never show a single word being played alone. Choose a short real line from one of the first two free conversations."
+    ],
+    "sourceId": "APP-01",
+    "series": "ArabicWithMo App — Demonstration"
+  },
+  {
+    "n": 107,
+    "title": "Can You Pronounce This Arabic Sentence?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Think you can pronounce Arabic?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: APP-02 | ArabicWithMo App — Demonstration",
+      "🎬 VISUAL HOOK: Open on the microphone interface, then your genuine reaction.",
+      "🎒 PROPS: Actual app screen recording",
+      "🔠 ON SCREEN: Listen → Record → Get Feedback",
+      "📝 PRODUCTION: Use real app feedback and no invented score. If recording the R7 and app screen separately, edit to align."
+    ],
+    "sourceId": "APP-02",
+    "series": "ArabicWithMo App — Demonstration"
+  },
+  {
+    "n": 108,
+    "title": "Stop Memorizing. Start Speaking Arabic.",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Memorizing Arabic words isn't the same as speaking!"
+      }
+    ],
+    "notes": [
+      "🧾 ID: APP-03 | ArabicWithMo App — Demonstration",
+      "🎬 VISUAL HOOK: Start with a real Arabic question playing and a reaction shot.",
+      "🎒 PROPS: Actual app screen recording",
+      "🔠 ON SCREEN: Real conversation → Your turn to speak",
+      "📝 PRODUCTION: Only show functions demonstrated in the current app."
+    ],
+    "sourceId": "APP-03",
+    "series": "ArabicWithMo App — Demonstration"
+  },
+  {
+    "n": 109,
+    "title": "One Conversation. Different Ways to Practice.",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "What if ONE Arabic conversation could become a whole practice session?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: APP-04 | ArabicWithMo App — Demonstration",
+      "🎬 VISUAL HOOK: Fast screen-recording montage with one REAL on-screen action per mode, not just menu names.",
+      "🎒 PROPS: Actual app screen recording",
+      "🔠 ON SCREEN: Listen | Pronunciation | Role Play | Challenge | Master | Complete Mastery",
+      "📝 PRODUCTION: NEW MODE NAME: Complete Mastery replaces Grand Master. Exact challenges and mechanics for Challenge/Master/Complete Mastery are not established from user descriptions: display real interaction and use short caption labels based ONLY on verified behavior. Do NOT claim real-time translation or instant live translation unless that specific feature is confirmed."
+    ],
+    "sourceId": "APP-04",
+    "series": "ArabicWithMo App — Demonstration"
+  },
+  {
+    "n": 110,
+    "title": "Why Do Arabs Type 3 and 7?",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "Ever seen Arabs type numbers inside words?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: DIALECT-01 | Franco Arabic & Dialects",
+      "🎬 VISUAL HOOK: Show a phone screen with huge 3 and 7 and reveal matching letters.",
+      "🎒 PROPS: Phone",
+      "🔠 ON SCREEN: 3 = ع | 7 = ح | 7abibi = حَبِيبِي",
+      "📝 PRODUCTION: Franco Arabic conventions vary; call them common conventions."
+    ],
+    "sourceId": "DIALECT-01",
+    "series": "Franco Arabic & Dialects"
+  },
+  {
+    "n": 111,
+    "title": "One Question, Three Arabics",
+    "dur": "~25s",
+    "beats": [
+      {
+        "t": "say",
+        "x": "How do you say \"WHERE\" in Arabic?"
+      }
+    ],
+    "notes": [
+      "🧾 ID: DIALECT-02 | Franco Arabic & Dialects",
+      "🎬 VISUAL HOOK: Three side-by-side labels: Egyptian / Levantine / MSA.",
+      "🎒 PROPS: None",
+      "🔠 ON SCREEN: فِين | وِين | أَيْنَ",
+      "📝 PRODUCTION: Use the common, representative dialect forms without implying all speakers say only these forms."
+    ],
+    "sourceId": "DIALECT-02",
+    "series": "Franco Arabic & Dialects"
+  }
+];
+  SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
+
+  const VERSION = "v261116.37-shorts-import";
 
   const $ = (id) => document.getElementById(id);
   const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
@@ -1365,7 +2111,13 @@
     { name: "Batch 1", start: 1, end: 15 },
     { name: "Batch 2", start: 16, end: 35 },
     { name: "Batch 3", start: 36, end: 50 },
-    { name: "Batch 4", start: 51, end: 74 }
+    { name: "Batch 4", start: 51, end: 74 },
+    { name: "Nov 2026 · Alphabet", start: 75, end: 90 },
+    { name: "Nov 2026 · Quizzes", start: 91, end: 96 },
+    { name: "Nov 2026 · Useful Words", start: 97, end: 101 },
+    { name: "Nov 2026 · Word Origins", start: 102, end: 105 },
+    { name: "Nov 2026 · App", start: 106, end: 109 },
+    { name: "Nov 2026 · Dialects", start: 110, end: 111 }
   ];
 
   function getBatchForScript(scriptNum) {
