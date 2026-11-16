@@ -3274,7 +3274,7 @@
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const normalized = {};
     for (const [num, done] of Object.entries(value)) {
-      if (/^[1-9]\\d*$/.test(num) && done) normalized[num] = 1;
+      if (/^[1-9][0-9]*$/.test(num) && done) normalized[num] = 1;
     }
     return normalized;
   };
