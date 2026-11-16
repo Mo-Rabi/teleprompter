@@ -3258,7 +3258,7 @@
 ];
   SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
 
-  const VERSION = "v261116.37-shorts-import";
+  const VERSION = "v261116.persist-done.newest-first";
 
   const $ = (id) => document.getElementById(id);
   const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
@@ -3266,13 +3266,66 @@
         remain = $("remain"), progress = $("progress");
 
   // ---------- state ----------
+  // Preferences and completion status are intentionally stored separately.
+  // Chrome keeps localStorage per browser profile, device, and site origin.
+  const SETTINGS_KEY = "awm-prompter";
+  const DONE_KEY = "awm-prompter-done-v1";
+  const normalizeDone = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const normalized = {};
+    for (const [num, done] of Object.entries(value)) {
+      if (/^[1-9]\\d*$/.test(num) && done) normalized[num] = 1;
+    }
+    return normalized;
+  };
   let st = { idx: 0, mult: 0.9, font: 38, notes: true, voice: false, done: {}, focusPos: 30, takeCount: 1, autoNext: false };
-  try { Object.assign(st, JSON.parse(localStorage.getItem("awm-prompter") || "{}")); } catch {}
-  st.idx = Math.min(Math.max(st.idx, 0), SCRIPTS.length - 1);
+  let storageLoadFailed = false;
+  try {
+    const existingSettings = localStorage.getItem(SETTINGS_KEY);
+    if (existingSettings) {
+      const parsed = JSON.parse(existingSettings);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) Object.assign(st, parsed);
+    }
+  } catch (err) { storageLoadFailed = true; }
+  st.done = normalizeDone(st.done); // Preserve already-saved progress from earlier versions.
+  try {
+    const savedCompletion = localStorage.getItem(DONE_KEY);
+    if (savedCompletion !== null) {
+      // Once available, the dedicated key is authoritative. This also prevents
+      // an older open tab's stale settings snapshot from re-marking undone scripts.
+      st.done = normalizeDone(JSON.parse(savedCompletion));
+    }
+  } catch (err) { storageLoadFailed = true; }
+  st.idx = Math.min(Math.max(Number(st.idx) || 0, 0), SCRIPTS.length - 1);
   st.autoNext = !!st.autoNext;
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
   st.mult = Math.min(1.5, Math.max(0.3, Number(st.mult) || 0.9));
-  const save = () => { try { localStorage.setItem("awm-prompter", JSON.stringify(st)); } catch {} };
+
+  // Completion writes are verified immediately rather than failing silently.
+  // The legacy preferences key is still written for backward compatibility.
+  const save = (completionChanged = false) => {
+    let completionSaved = true;
+    if (completionChanged) {
+      try {
+        const encoded = JSON.stringify(st.done);
+        localStorage.setItem(DONE_KEY, encoded);
+        completionSaved = localStorage.getItem(DONE_KEY) === encoded;
+      } catch (err) { completionSaved = false; }
+    }
+    let settingsSaved = false;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(st));
+      settingsSaved = true;
+    } catch (err) { settingsSaved = false; }
+    if (!completionSaved) {
+      banner("fail", "Could not save Done status. Allow site storage and avoid Incognito mode.");
+    } else if (!settingsSaved) {
+      banner("fail", "Browser storage is blocked. Your settings may reset after refresh.");
+    } else if (completionChanged) {
+      banner("ok", "Saved on this device ✓", 1400);
+    }
+    return completionSaved && settingsSaved;
+  };
 
   // persistent status banner — stays until tapped (or auto-hides if autoHideMs is set)
   const bannerEl = $("banner");
@@ -3284,6 +3337,20 @@
     if (autoHideMs) bannerTimer = setTimeout(() => { bannerEl.className = ""; }, autoHideMs);
   }
   bannerEl.addEventListener("click", () => { clearTimeout(bannerTimer); bannerEl.className = ""; });
+  if (storageLoadFailed) {
+    banner("fail", "Previously saved progress could not be read. Check this browser's site storage.");
+  }
+  // Keep Done status consistent if this same website is open in multiple tabs.
+  window.addEventListener("storage", (event) => {
+    if (event.key !== DONE_KEY) return;
+    try {
+      st.done = normalizeDone(event.newValue ? JSON.parse(event.newValue) : {});
+      updateDoneTally();
+      if (picker.classList.contains("open")) buildList();
+    } catch (err) {
+      banner("fail", "Saved Done status could not be read from another tab.");
+    }
+  });
 
   let playing = false, raf = 0, last = 0, hideTimer = 0, countTimer = 0, wakeLock = null;
   let takeMs = 0; // running read time of the current take
@@ -3687,7 +3754,7 @@
   }
 
   function searchScripts(query) {
-    if (!query || query.trim() === "") return SCRIPTS;
+    if (!query || query.trim() === "") return [...SCRIPTS].reverse();
     
     const lowerQuery = query.toLowerCase().trim();
     return SCRIPTS.filter(s => {
@@ -3703,7 +3770,7 @@
       if (content.includes(lowerQuery)) return true;
       
       return false;
-    });
+    }).reverse();
   }
 
   function buildList() {
@@ -3743,7 +3810,7 @@
           e.stopPropagation();
           const wasDone = !!st.done[s.n];
           if (wasDone) delete st.done[s.n]; else st.done[s.n] = 1;
-          save();
+          save(true);
           const isNowDone = !!st.done[s.n];
           b.classList.toggle("done", isNowDone);
           b.querySelector(".chk").setAttribute("aria-checked", isNowDone);
@@ -3768,7 +3835,8 @@
 
     const latestBatch = getLatestBatch();
     
-    BATCHES.forEach((batch, batchIndex) => {
+    [...BATCHES].reverse().forEach((batch, reverseIndex) => {
+      const batchIndex = BATCHES.length - 1 - reverseIndex; // Keep newest expanded.
       // Filter scripts for this batch
       const batchScripts = SCRIPTS.filter(s => s.n >= batch.start && s.n <= batch.end);
       
@@ -3813,7 +3881,7 @@
           e.stopPropagation();
           const wasDone = !!st.done[s.n];
           if (wasDone) delete st.done[s.n]; else st.done[s.n] = 1;
-          save();
+          save(true);
           const isNowDone = !!st.done[s.n];
           b.classList.toggle("done", isNowDone);
           b.querySelector(".chk").setAttribute("aria-checked", isNowDone);
