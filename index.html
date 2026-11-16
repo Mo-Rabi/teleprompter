@@ -623,6 +623,20 @@
     font-size: 13px;
     font-style: italic;
   }
+  /* Same-origin, linkable Archive view, sharing the existing saved progress. */
+  .picker-actions { display: flex; align-items: center; gap: 8px; }
+  #archiveLink {
+    display: inline-flex; align-items: center; padding: 8px 12px;
+    border: 1px solid var(--hairline); border-radius: 10px;
+    color: var(--accent); font-size: 13px; font-weight: 650;
+    text-decoration: none; white-space: nowrap;
+  }
+  #archiveLink:hover { background: rgba(255, 140, 66, 0.12); }
+  #archiveLink[hidden] { display: none; }
+  .archive-hint { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 0 20px 12px; margin: 0; }
+  .archive-hint[hidden] { display: none; }
+  body.archive-page #picker { display: flex; }
+  body.archive-page #bar, body.archive-page #status, body.archive-page #filmingStats { display: none; }
   /* Ensure search result buttons are clickable */
   #list button {
     pointer-events: auto !important;
@@ -930,9 +944,13 @@
 
 <div id="picker" role="dialog" aria-label="Choose a script">
   <header>
-    <span class="h">Scripts<span id="doneTally"></span></span>
-    <button id="closePicker">Close</button>
+    <span class="h"><span id="pickerHeading">Scripts</span><span id="doneTally"></span></span>
+    <div class="picker-actions">
+      <a id="archiveLink" href="?view=archive" aria-label="Open completed batches archive">Archive</a>
+      <button id="closePicker">Close</button>
+    </div>
   </header>
+  <p id="archiveHint" class="archive-hint" hidden>Completed batches appear here automatically. Unchecking a script returns its entire batch to the active Scripts list.</p>
   <div class="search-container">
     <input type="text" id="searchInput" placeholder="Search scripts..." aria-label="Search scripts">
     <button id="clearSearch" aria-label="Clear search" style="display: none;">✕</button>
@@ -3258,7 +3276,9 @@
 ];
   SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
 
-  const VERSION = "v261116.persist-done.newest-first";
+  const VERSION = "v261116.archive-completed-batches";
+  // Linkable page at ?view=archive without duplicating all 111 script definitions.
+  const archiveMode = new URLSearchParams(window.location.search).get("view") === "archive";
 
   const $ = (id) => document.getElementById(id);
   const scroll = $("scroll"), lines = $("lines"), bar = $("bar"),
@@ -3297,6 +3317,11 @@
     }
   } catch (err) { storageLoadFailed = true; }
   st.idx = Math.min(Math.max(Number(st.idx) || 0, 0), SCRIPTS.length - 1);
+  const requestedScript = new URLSearchParams(window.location.search).get("script");
+  if (requestedScript && /^[1-9][0-9]*$/.test(requestedScript)) {
+    const requestedIndex = SCRIPTS.findIndex(s => String(s.n) === requestedScript);
+    if (requestedIndex !== -1) st.idx = requestedIndex;
+  }
   st.autoNext = !!st.autoNext;
   if (st.v !== 2) { st.mult = 0.9; st.v = 2; } // one-time migration to the new 0.9× default
   st.mult = Math.min(1.5, Math.max(0.3, Number(st.mult) || 0.9));
@@ -3719,6 +3744,7 @@
     $("doneTally").textContent = ` · ${n}/${SCRIPTS.length} done`;
     // same counter in the main bar, next to the script title
     document.querySelector("#scriptBtn .cnt").textContent = `${n}/${SCRIPTS.length} ✓`;
+    $("archiveLink").textContent = `Archive (${getArchivedBatches().length})`;
   }
 
   // Batch definitions
@@ -3744,32 +3770,31 @@
     return BATCHES.length - 1; // Default to last batch
   }
 
-  function getLatestBatch() {
-    let maxBatch = 0;
-    SCRIPTS.forEach(s => {
-      const batch = getBatchForScript(s.n);
-      if (batch > maxBatch) maxBatch = batch;
-    });
-    return maxBatch;
+  // Archive status is computed from Done checkmarks, never stored separately.
+  function scriptsInBatch(batch) {
+    return SCRIPTS.filter(s => s.n >= batch.start && s.n <= batch.end);
+  }
+
+  function isBatchArchived(batch) {
+    const scripts = scriptsInBatch(batch);
+    return scripts.length > 0 && scripts.every(s => !!st.done[s.n]);
+  }
+
+  function getArchivedBatches() {
+    return BATCHES.filter(isBatchArchived);
+  }
+
+  function batchOfScript(script) {
+    return BATCHES[getBatchForScript(script.n)];
   }
 
   function searchScripts(query) {
-    if (!query || query.trim() === "") return [...SCRIPTS].reverse();
-    
-    const lowerQuery = query.toLowerCase().trim();
+    const q = (query || "").toLowerCase().trim();
     return SCRIPTS.filter(s => {
-      // Search in title
-      if (s.title.toLowerCase().includes(lowerQuery)) return true;
-      
-      // Search in script content (beats)
-      const content = s.beats
-        .filter(b => b.t === "say")
-        .map(b => b.x.toLowerCase())
-        .join(" ");
-      
-      if (content.includes(lowerQuery)) return true;
-      
-      return false;
+      if (isBatchArchived(batchOfScript(s)) !== archiveMode) return false;
+      if (!q) return true;
+      if (s.title.toLowerCase().includes(q)) return true;
+      return s.beats.some(b => b.t === "say" && b.x.toLowerCase().includes(q));
     }).reverse();
   }
 
@@ -3783,7 +3808,7 @@
     // If search is active, show flat list; otherwise show batches
     if (searchQuery.trim() !== "") {
       if (filteredScripts.length === 0) {
-        list.innerHTML = `<div class="no-results">No scripts found matching "${searchQuery}"</div>`;
+        list.innerHTML = `<div class="no-results">No ${archiveMode ? "archived" : "active"} scripts found matching "${searchQuery}"</div>`;
         return;
       }
       
@@ -3815,9 +3840,17 @@
           b.classList.toggle("done", isNowDone);
           b.querySelector(".chk").setAttribute("aria-checked", isNowDone);
           updateDoneTally();
+          if (isBatchArchived(batchOfScript(s)) !== archiveMode) {
+            buildList();
+            banner("ok", archiveMode ? "Batch returned to Scripts ✓" : "Batch moved to Archive ✓", 2600);
+          }
           if (!wasDone && isNowDone) celebrate();
         });
         b.addEventListener("click", () => {
+          if (archiveMode) {
+            window.location.href = "./?script=" + encodeURIComponent(s.n);
+            return;
+          }
           pause();
           st.idx = i; save();
           render();
@@ -3833,18 +3866,25 @@
       return;
     }
 
-    const latestBatch = getLatestBatch();
-    
-    [...BATCHES].reverse().forEach((batch, reverseIndex) => {
-      const batchIndex = BATCHES.length - 1 - reverseIndex; // Keep newest expanded.
-      // Filter scripts for this batch
-      const batchScripts = SCRIPTS.filter(s => s.n >= batch.start && s.n <= batch.end);
-      
-      if (batchScripts.length === 0) return; // Skip empty batches
+    const visibleBatches = BATCHES
+      .map((batch, batchIndex) => ({ batch, batchIndex }))
+      .filter(({ batch }) => isBatchArchived(batch) === archiveMode)
+      .reverse();
+    const newestVisibleBatch = visibleBatches[0]?.batchIndex;
+    if (!visibleBatches.length) {
+      list.innerHTML = `<div class="no-results">${archiveMode
+        ? "Nothing archived yet. Mark every script in a batch Done to move it here."
+        : "All batches are complete! Open Archive to revisit them."}</div>`;
+      updateDoneTally();
+      return;
+    }
+
+    visibleBatches.forEach(({ batch, batchIndex }) => {
+      const batchScripts = scriptsInBatch(batch);
       
       // Create batch header
       const batchHeader = document.createElement("div");
-      batchHeader.className = "batch-header" + (batchIndex !== latestBatch ? " collapsed" : "");
+      batchHeader.className = "batch-header" + (batchIndex !== newestVisibleBatch ? " collapsed" : "");
       const batchDoneCount = batchScripts.filter(s => st.done[s.n]).length;
       
       batchHeader.innerHTML = `
@@ -3855,7 +3895,7 @@
       
       // Create batch content container
       const batchContent = document.createElement("div");
-      batchContent.className = "batch-content" + (batchIndex !== latestBatch ? " collapsed" : "");
+      batchContent.className = "batch-content" + (batchIndex !== newestVisibleBatch ? " collapsed" : "");
       
       // Add script rows for this batch
       batchScripts.forEach((s) => {
@@ -3886,12 +3926,21 @@
           b.classList.toggle("done", isNowDone);
           b.querySelector(".chk").setAttribute("aria-checked", isNowDone);
           updateDoneTally();
-          // Update batch count
-          const newBatchDoneCount = batchScripts.filter(s => st.done[s.n]).length;
-          batchHeader.querySelector(".batch-count").textContent = `${newBatchDoneCount}/${batchScripts.length} done`;
+          // Move the whole batch into/out of Archive on the final Done toggle.
+          if (isBatchArchived(batch) !== archiveMode) {
+            buildList();
+            banner("ok", archiveMode ? "Batch returned to Scripts ✓" : "Batch moved to Archive ✓", 2600);
+          } else {
+            const newBatchDoneCount = batchScripts.filter(s => st.done[s.n]).length;
+            batchHeader.querySelector(".batch-count").textContent = `${newBatchDoneCount}/${batchScripts.length} done`;
+          }
           if (!wasDone && isNowDone) celebrate();
         });
         b.addEventListener("click", () => {
+          if (archiveMode) {
+            window.location.href = "./?script=" + encodeURIComponent(s.n);
+            return;
+          }
           pause();
           st.idx = i; save();
           render();
@@ -3913,7 +3962,10 @@
     updateDoneTally();
   }
   $("scriptBtn").addEventListener("click", () => { pause(); buildList(); picker.classList.add("open"); });
-  $("closePicker").addEventListener("click", () => picker.classList.remove("open"));
+  $("closePicker").addEventListener("click", () => {
+    if (archiveMode) window.location.href = "./";
+    else picker.classList.remove("open");
+  });
   
   // Search functionality
   const searchInput = $("searchInput");
@@ -4228,7 +4280,8 @@
   // ---------- keyboard & bluetooth clicker ----------
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      picker.classList.remove("open");
+      if (archiveMode) window.location.href = "./";
+      else picker.classList.remove("open");
       help.classList.remove("open");
       return;
     }
@@ -4253,13 +4306,24 @@
   applyNotes();
   render();
   $("takeCount").textContent = st.takeCount || 1;
+  if (archiveMode) {
+    document.title = "Archive · Mo's Teleprompter";
+    document.body.classList.add("archive-page");
+    $("pickerHeading").textContent = "Archive";
+    $("archiveHint").hidden = false;
+    $("archiveLink").hidden = true;
+    $("closePicker").textContent = "← Scripts";
+    $("searchInput").placeholder = "Search archived scripts...";
+    picker.classList.add("open");
+    buildList();
+  }
   // announce version changes so a stale cached copy is unmistakable:
   // banner on update; no banner + old version in the bar = still stale
   if (st.lastVer !== VERSION) {
     st.lastVer = VERSION; save();
     banner("ok", "Updated to " + VERSION + " ✓", 3000);
   }
-  if (st.voice && SR) { voiceOn = true; setVoiceUI(); initVoiceEngines(); startRec(); }
+  if (!archiveMode && st.voice && SR) { voiceOn = true; setVoiceUI(); initVoiceEngines(); startRec(); }
 })();
 </script>
 
