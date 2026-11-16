@@ -375,13 +375,19 @@
   body.camera-mode #status, body.camera-mode #filmingStats, body.camera-mode #micLive { display:none !important; }
   #cameraModeBtn[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); background:rgba(255,140,66,.15); }
   #cameraToolbar {
-    position:fixed; top:calc(8px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); z-index:8;
+    position:fixed; top:25dvh; left:50%; transform:translate(-50%,-50%); z-index:8;
     display:none; width:max-content; max-width:calc(100vw - 16px); align-items:center; justify-content:center;
     flex-wrap:wrap; gap:6px; padding:7px; border-radius:15px;
     background:rgba(10,11,15,.86); border:1px solid rgba(255,255,255,.15); backdrop-filter:blur(12px);
   }
   body.camera-mode #cameraToolbar { display:flex; }
   #cameraToolbar button { min-height:38px; padding:7px 11px; font-weight:650; font-size:13px; }
+  #cameraDragHandle {
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    color:var(--accent); cursor:grab; background:rgba(255,140,66,.10);
+    border:1px dashed rgba(255,140,66,.55);
+  }
+  #cameraDragHandle:active { cursor:grabbing; }
   #cameraEnableBtn { color:var(--accent); }
   #cameraRecordBtn { color:#ff8882; border-color:rgba(255,83,72,.5); }
   #cameraRecordBtn.recording { background:#a32322; color:#fff; border-color:#e94d4b; }
@@ -391,7 +397,8 @@
   #cameraInfo {
     position:fixed; top:calc(68px + env(safe-area-inset-top)); left:12px; right:12px; z-index:7;
     display:none; margin:0 auto; padding:6px 10px; width:fit-content; max-width:90vw; text-align:center;
-    color:#fff; font-size:12px; line-height:1.4; background:rgba(0,0,0,.65); border-radius:10px; pointer-events:none;
+    color:#fff; font-size:12px; line-height:1.4; background:rgba(0,0,0,.65); border-radius:10px;
+    pointer-events:none; transition:opacity .25s ease;
   }
   body.camera-mode #cameraInfo { display:block; }
   #cameraResult {
@@ -940,6 +947,7 @@
 <div id="scroll"><div id="lines"></div></div>
 
 <div id="cameraToolbar" role="toolbar" aria-label="Camera recording controls">
+  <button id="cameraDragHandle" type="button" aria-label="Drag camera controls to reposition" title="Hold and drag to move controls">⠿ Move</button>
   <button id="cameraEnableBtn" type="button">Start Camera</button>
   <button id="cameraFlipBtn" type="button" disabled>Flip</button>
   <button id="cameraRecordBtn" type="button" disabled>● Record</button>
@@ -3352,7 +3360,7 @@
 ];
   SCRIPTS.push(...NOVEMBER_2026_SCRIPTS);
 
-  const VERSION = "v261116.camera-mode-v1";
+  const VERSION = "v261116.camera-portrait-hd-draggable";
   // Linkable page at ?view=archive without duplicating all 111 script definitions.
   const requestedView = new URLSearchParams(window.location.search).get("view");
   const archiveMode = requestedView === "archive";
@@ -4359,7 +4367,8 @@
   // ---------- Camera Mode ----------
   // MediaRecorder records the raw camera/audio stream. The prompter stays on
   // screen for the presenter but is NOT burned into the recorded video.
-  const camButton=$("cameraModeBtn"), camEnable=$("cameraEnableBtn"),
+  const camToolbar=$("cameraToolbar"), camGrip=$("cameraDragHandle"),
+    camButton=$("cameraModeBtn"), camEnable=$("cameraEnableBtn"),
     camFlip=$("cameraFlipBtn"), camRecord=$("cameraRecordBtn"),
     camReview=$("cameraReviewBtn"), camExit=$("cameraExitBtn"),
     camInfo=$("cameraInfo"), camClock=$("cameraClock"),
@@ -4367,8 +4376,53 @@
     camPlayback=$("cameraPlayback"), camDownload=$("cameraDownload");
   let cameraMode=false, camFacing=st.cameraFacing==="environment"?"environment":"user",
     camStream=null, camRequest=0, camBusy=false, camRecorder=null, camParts=[],
-    camTick=null, camStartTime=0, camClip=null, camClipSaved=true, camStopping=false;
-  const camStatus=(s)=>{camInfo.textContent=s;};
+    camTick=null, camStartTime=0, camClip=null, camClipSaved=true, camStopping=false,
+    camCanvasStream=null, camDrawFrame=null, camStatusTimer=null;
+  const camStatus=(message, hideAfter=3500)=>{
+    camInfo.textContent=message;
+    camInfo.style.opacity="1";
+    clearTimeout(camStatusTimer);
+    if(hideAfter>0)camStatusTimer=setTimeout(()=>{camInfo.style.opacity="0";},hideAfter);
+  };
+  const cameraOutput={width:1080,height:1920,fps:30,bitrate:12000000};
+
+  // Keep toolbar position in the existing browser-local settings.
+  // Normalized coordinates survive screen-size and orientation changes.
+  function positionCamToolbar(){
+    if(!cameraMode)return;
+    const w=window.innerWidth,h=window.innerHeight;
+    const rect=camToolbar.getBoundingClientRect();
+    const minX=rect.width/2+6,maxX=w-rect.width/2-6;
+    const minY=rect.height/2+6,maxY=h-rect.height/2-6;
+    const saved=st.cameraToolbar||{x:0.5,y:0.25};
+    const rawX=Number.isFinite(saved.x)?saved.x*w:0.5*w;
+    const rawY=Number.isFinite(saved.y)?saved.y*h:0.25*h;
+    const x=Math.min(Math.max(rawX,minX),Math.max(minX,maxX));
+    const y=Math.min(Math.max(rawY,minY),Math.max(minY,maxY));
+    camToolbar.style.left=x+"px";
+    camToolbar.style.top=y+"px";
+  }
+  let draggingCam=false;
+  camGrip.addEventListener("pointerdown",(e)=>{
+    if(!cameraMode)return;
+    draggingCam=true;
+    camGrip.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  camGrip.addEventListener("pointermove",(e)=>{
+    if(!draggingCam||!cameraMode)return;
+    e.preventDefault();
+    const bounds=camToolbar.getBoundingClientRect();
+    const x=Math.min(Math.max(e.clientX,bounds.width/2+6),window.innerWidth-bounds.width/2-6);
+    const y=Math.min(Math.max(e.clientY,bounds.height/2+6),window.innerHeight-bounds.height/2-6);
+    camToolbar.style.left=x+"px";
+    camToolbar.style.top=y+"px";
+    st.cameraToolbar={x:x/window.innerWidth,y:y/window.innerHeight};
+  });
+  const endToolbarDrag=()=>{if(draggingCam){draggingCam=false;save();}};
+  camGrip.addEventListener("pointerup",endToolbarDrag);
+  camGrip.addEventListener("pointercancel",endToolbarDrag);
+  window.addEventListener("resize",()=>{if(cameraMode)positionCamToolbar();});
   const camRecording=()=>camRecorder&&camRecorder.state!=="inactive";
   const camTime=(seconds)=>Math.floor(seconds/60)+":"+String(Math.floor(seconds%60)).padStart(2,"0");
   function updateCamUI(){
@@ -4399,7 +4453,13 @@
     stopCamStream();
     camStatus("Requesting camera and microphone permission…");
     updateCamUI();
-    const video={facingMode:{ideal:camFacing},width:{ideal:1080},height:{ideal:1920},frameRate:{ideal:30}};
+    // Prefer a native portrait HD camera stream rather than a low-resolution
+    // viewport-sized stream. Some mobile browsers return landscape anyway.
+    const video={
+      facingMode:{ideal:camFacing},
+      width:{ideal:1080},height:{ideal:1920},
+      aspectRatio:{ideal:9/16},frameRate:{ideal:30}
+    };
     let stream=null,hasAudio=true;
     try{
       try{
@@ -4417,9 +4477,14 @@
       camStream=stream;
       camVideo.srcObject=stream;
       try{await camVideo.play();}catch(err){}
-      camStatus(hasAudio?
-        "Camera ready · Prompt text will NOT be recorded.":
-        "Camera ready WITHOUT audio. Allow microphone access for sound.");
+      const settings=stream.getVideoTracks()[0]?.getSettings?.()||{};
+      const sw=camVideo.videoWidth||settings.width||0;
+      const sh=camVideo.videoHeight||settings.height||0;
+      const actual=sw&&sh?sw+"×"+sh:"unknown size";
+      camStatus(hasAudio
+        ? "Camera input: "+actual+" · Output: 1080×1920 portrait. Prompt not recorded."
+        : "Camera input: "+actual+" · Microphone unavailable; recordings will have no audio.",
+        hasAudio?4800:0);
       for(const track of stream.getVideoTracks()){
         track.addEventListener("ended",()=>{
           if(camStream===stream){
@@ -4449,31 +4514,83 @@
     return ["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4",
       "video/webm;codecs=vp8,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
   }
+  // A fixed portrait canvas guarantees 9:16 video metadata even if Chrome's
+  // camera API supplies landscape frames. Center-crop to match object-fit: cover;
+  // never draw HTML, captions, UI, or the teleprompter onto this canvas.
+  function paintPortraitFrame(canvas,ctx){
+    const sw=camVideo.videoWidth,sh=camVideo.videoHeight;
+    if(!sw||!sh||camVideo.readyState<2)return false;
+    const target=9/16,source=sw/sh;
+    let sx=0,sy=0,cw=sw,ch=sh;
+    if(source>target){cw=sh*target;sx=(sw-cw)/2;}
+    else{ch=sw/target;sy=(sh-ch)/2;}
+    ctx.drawImage(camVideo,sx,sy,cw,ch,0,0,canvas.width,canvas.height);
+    return true;
+  }
+  function releasePortraitCapture(){
+    if(camDrawFrame!==null){cancelAnimationFrame(camDrawFrame);camDrawFrame=null;}
+    if(camCanvasStream)camCanvasStream.getTracks().forEach(track=>track.stop());
+    camCanvasStream=null;
+  }
   function stopCamRecording(){
     if(!camRecording()||camStopping)return;
     camStopping=true;
     try{camRecorder.stop();}
-    catch(err){camStopping=false;camStatus("Could not stop recording. Please retry.");}
+    catch(err){camStopping=false;camStatus("Could not stop recording. Please retry.",0);}
     clearInterval(camTick);camTick=null;
     pause();
     updateCamUI();
   }
   function startCamRecording(){
     if(!camStream||camBusy||camStopping||!window.MediaRecorder){
-      camStatus("Start Camera first. This browser must support video recording.");
+      camStatus("Start Camera first. This browser must support video recording.",0);
       return;
+    }
+    if(camVideo.readyState<2||!camVideo.videoWidth||!camVideo.videoHeight){
+      camStatus("Waiting for the camera frame. Please retry in a moment.",0);return;
     }
     if(camClip&&!camClipSaved&&!confirm("Last recording was not saved. Discard it?"))return;
     if(camClip)discardCamClip();
     camParts=[];
     const mime=supportedCamMime();
+    let canvas=null;
     try{
-      try{camRecorder=new MediaRecorder(camStream,mime?{mimeType:mime}:undefined);}
-      catch(err){camRecorder=new MediaRecorder(camStream);}
+      canvas=document.createElement("canvas");
+      canvas.width=cameraOutput.width;
+      canvas.height=cameraOutput.height;
+      const ctx=canvas.getContext("2d",{alpha:false});
+      if(!ctx||!canvas.captureStream)throw Error("Portrait canvas capture unsupported");
+      ctx.imageSmoothingEnabled=true;
+      ctx.imageSmoothingQuality="high";
+      if(!paintPortraitFrame(canvas,ctx))throw Error("No frame from camera");
+      // Redraw every available animation frame; captureStream caps recording
+      // at 30 fps, avoiding viewport-dependent orientation and stretching.
+      const draw=()=>{
+        if(!camCanvasStream)return;
+        try{paintPortraitFrame(canvas,ctx);}catch(error){
+          camStatus("Camera frame error. Stopping the recording.",0);
+          if(camRecording())stopCamRecording();
+          return;
+        }
+        camDrawFrame=requestAnimationFrame(draw);
+      };
+      camCanvasStream=canvas.captureStream(cameraOutput.fps);
+      if(!camCanvasStream.getVideoTracks().length)throw Error("No portrait video track");
+      const outputStream=new MediaStream([
+        ...camCanvasStream.getVideoTracks(),
+        ...camStream.getAudioTracks() // Native microphone audio remains untouched.
+      ]);
+      const quality={videoBitsPerSecond:cameraOutput.bitrate,audioBitsPerSecond:160000};
+      try{camRecorder=new MediaRecorder(outputStream,mime?{...quality,mimeType:mime}:quality);}
+      catch(err){
+        try{camRecorder=new MediaRecorder(outputStream,mime?{mimeType:mime}:undefined);}
+        catch(err2){camRecorder=new MediaRecorder(outputStream);}
+      }
       const recorder=camRecorder;
       recorder.ondataavailable=(event)=>{if(event.data?.size>0)camParts.push(event.data);};
-      recorder.onerror=()=>camStatus("Recording error. Check your browser's camera support.");
+      recorder.onerror=()=>camStatus("Recording error. Check camera and browser support.",0);
       recorder.onstop=()=>{
+        releasePortraitCapture();
         camStopping=false;
         clearInterval(camTick);camTick=null;
         camClock.classList.remove("recording");
@@ -4481,7 +4598,7 @@
         const blob=new Blob(camParts,{type:fileMime});
         camParts=[];
         if(!blob.size){
-          camStatus("No footage was captured. Please retry.");
+          camStatus("No footage was captured. Please retry.",0);
           updateCamUI();
           return;
         }
@@ -4491,25 +4608,28 @@
         camDownload.href=camClip;
         const ext=fileMime.includes("mp4")?"mp4":"webm";
         const date=new Date().toISOString().replace(/[:.]/g,"-");
-        camDownload.download="ArabicWithMo_Script_"+SCRIPTS[st.idx].n+"_"+date+"."+ext;
+        camDownload.download="ArabicWithMo_Portrait_1080x1920_Script_"+SCRIPTS[st.idx].n+"_"+date+"."+ext;
         camResult.hidden=false;
-        camStatus("Recording ready · Save the video before leaving.");
+        camStatus("Portrait recording ready (9:16) · Save before leaving.",3800);
         updateCamUI();
       };
       recorder.start(1000);
+      camDrawFrame=requestAnimationFrame(draw);
       camStartTime=Date.now();
       camTick=setInterval(()=>{
         camClock.textContent=camTime((Date.now()-camStartTime)/1000);
       },250);
       camClock.textContent="0:00";
       camClock.classList.add("recording");
-      camStatus("Recording · Only camera video and microphone audio are saved.");
+      camStatus("Recording 1080×1920 portrait · Text is NOT recorded.",2500);
       updateCamUI();
+      grabWakeLock();
     }catch(err){
+      releasePortraitCapture();
       camStopping=false;
       clearInterval(camTick);
       camClock.classList.remove("recording");
-      camStatus("Video recording unsupported. You can still use camera preview.");
+      camStatus("Portrait recording unavailable: "+(err?.message||"browser support issue")+". Camera preview still works.",0);
       updateCamUI();
     }
   }
@@ -4535,8 +4655,9 @@
       camButton.setAttribute("aria-label","Exit Camera Mode");
       micBtn.disabled=true;
       camURL(true);
-      camStatus("Tap Start Camera to enable preview. Text is never recorded.");
+      camStatus("Tap Start Camera to enable preview. Drag ⠿ Move to reposition controls.",4300);
       updateCamUI();updateMetrics();paint();
+      requestAnimationFrame(positionCamToolbar);
     }
     if(openCamera)startCam();
   }
@@ -4549,6 +4670,7 @@
     if(camClip&&!camClipSaved&&!confirm("Recording not saved. Exit and discard it?"))return;
     ++camRequest;camBusy=false;
     stopCamStream();
+    releasePortraitCapture();
     if(camClip)discardCamClip();
     cameraMode=false;
     document.body.classList.remove("camera-mode");
@@ -4579,7 +4701,7 @@
     if(!document.hidden||!cameraMode)return;
     if(camRecording())stopCamRecording();
     else if(camStream){
-      stopCamStream();camStatus("Camera paused in background. Tap Start Camera to resume.");
+      stopCamStream();camStatus("Camera paused in background. Tap Start Camera to resume.",0);
     }
   });
 
