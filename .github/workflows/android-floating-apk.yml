@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -45,3 +45,20 @@ jobs:
           path: android-floating/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish permanently downloadable APK as GitHub prerelease
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/android-floating-teleprompter'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="floating-teleprompter-v1-debug"
+          APK="android-floating/app/build/outputs/apk/debug/app-debug.apk"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK#ArabicWithMo_Floating_Teleprompter_Debug.apk" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$APK#ArabicWithMo_Floating_Teleprompter_Debug.apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "ArabicWithMo Floating Teleprompter — Android Debug APK" \
+              --notes "Personal testing build; unsigned-for-distribution, debug-signed. Requires Display over other apps permission. Tested in CI, not yet on Huawei P30 Pro." \
+              --prerelease
+          fi
