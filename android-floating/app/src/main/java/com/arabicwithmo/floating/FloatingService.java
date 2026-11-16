@@ -19,6 +19,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -32,6 +33,7 @@ import android.widget.TextView;
 public class FloatingService extends Service {
     public static final String ACTION_SHOW="com.arabicwithmo.floating.SHOW";
     public static final String ACTION_STOP="com.arabicwithmo.floating.STOP";
+    public static final String ACTION_STATUS="com.arabicwithmo.floating.OVERLAY_STATUS";
     private static final String CHANNEL="mo_floating_teleprompter";
     private static final int NOTIFICATION_ID=7611;
 
@@ -103,16 +105,46 @@ public class FloatingService extends Service {
             .build();
     }
 
+    private void reportOverlayStatus(boolean created,String detail) {
+        Intent event=new Intent(ACTION_STATUS);
+        event.setPackage(getPackageName());
+        event.putExtra("created",created);
+        event.putExtra("message",detail);
+        sendBroadcast(event);
+    }
+
     @Override public int onStartCommand(Intent intent,int flags,int startId) {
         if(intent!=null && ACTION_STOP.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
-        if(!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY; }
-        Notification notification=makeNotification();
-        if(Build.VERSION.SDK_INT>=34) {
-            startForeground(NOTIFICATION_ID,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else startForeground(NOTIFICATION_ID,notification);
-        int script=(intent==null)?settings.getInt("script",75):intent.getIntExtra("script",settings.getInt("script",75));
-        if(root==null) showOverlay();
-        selectScript(script);
+        if(!Settings.canDrawOverlays(this)) {
+            reportOverlayStatus(false,"Display over other apps permission denied. Check Huawei Dropzone.");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        try {
+            Notification notification=makeNotification();
+            if(Build.VERSION.SDK_INT>=34) {
+                startForeground(NOTIFICATION_ID,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else startForeground(NOTIFICATION_ID,notification);
+            int script=(intent==null)?settings.getInt("script",75):intent.getIntExtra("script",settings.getInt("script",75));
+            if(root==null) showOverlay();
+            selectScript(script);
+            // WindowManager.addView returning successfully does not guarantee the
+            // compositor actually displayed the overlay. Check attachment before
+            // telling the user to open the native camera.
+            final LinearLayout currentRoot=root;
+            handler.postDelayed(()->{
+                if(currentRoot!=null && currentRoot==root && currentRoot.isAttachedToWindow()){
+                    reportOverlayStatus(true,"Android overlay attached.");
+                }else{
+                    reportOverlayStatus(false,"Floating window did not attach. Check Huawei Dropzone / background popup permissions.");
+                    stopSelf();
+                }
+            },400);
+        } catch(RuntimeException ex) {
+            Log.e("MoFloatingPrompter","Failed to create system overlay",ex);
+            reportOverlayStatus(false,ex.getClass().getSimpleName()+": "+String.valueOf(ex.getMessage()));
+            stopSelf();
+        }
         return START_NOT_STICKY;
     }
 
@@ -298,6 +330,7 @@ public class FloatingService extends Service {
     }
 
     @Override public void onDestroy() {
+        reportOverlayStatus(false,"Floating overlay stopped.");
         pause();
         if(root!=null) {
             try { manager.removeView(root); } catch(Exception ignored) {}
